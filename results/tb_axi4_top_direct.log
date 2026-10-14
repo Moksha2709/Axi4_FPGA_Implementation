@@ -1,0 +1,113 @@
+﻿VCD info: dumpfile tb_axi4_top.vcd opened for output.
+
+==== Level 3 : axi4_top integration test  (PIPE_STAGE = 0) ====
+     manager wired directly to subordinate (no FF stage)
+
+-- I1 : 8-beat INCR write at 0x100, then read it back
+  [ ok ] I1 BRESP = 2'b00
+  [ ok ] I1 BID echoed = 0x00000001
+  write took 11 cycles
+  [ ok ] I1 RRESP = 2'b00
+  read took 10 cycles
+  [ ok ] I1 beat = 0x11000000
+  [ ok ] I1 beat = 0x11100001
+  [ ok ] I1 beat = 0x11200002
+  [ ok ] I1 beat = 0x11300003
+  [ ok ] I1 beat = 0x11400004
+  [ ok ] I1 beat = 0x11500005
+  [ ok ] I1 beat = 0x11600006
+  [ ok ] I1 beat = 0x11700007
+
+-- I2 : WRAP burst from 0x208, then linear read of the window
+  [ ok ] I2 BRESP = 2'b00
+  [ ok ] I2 mem[0x200] = 0x2000cccc
+  [ ok ] I2 mem[0x204] = 0x2000dddd
+  [ ok ] I2 mem[0x208] = 0x2000aaaa
+  [ ok ] I2 mem[0x20C] = 0x2000bbbb
+
+-- I3 : FIXED burst, 4 beats, all to 0x300
+  [ ok ] I3 BRESP = 2'b00
+  [ ok ] I3 last beat wins = 0x30000004
+  [ ok ] I3 next word untouched = 0x00000000
+
+-- I4 : WSTRB byte merging across a 4-beat burst
+  [ ok ] I4 BRESP = 2'b00
+  [ ok ] I4 mem[0x400] = 0xffffff11
+  [ ok ] I4 mem[0x404] = 0xffff22ff
+  [ ok ] I4 mem[0x408] = 0xff33ffff
+  [ ok ] I4 mem[0x40C] = 0x44ffffff
+
+-- I5 : out-of-range address 0x2000 -> DECERR at the host
+  [ ok ] I5 write BRESP = 2'b11
+  [ ok ] I5 read RRESP = 2'b11
+  [ ok ] I5 read data zeroed = 0x00000000
+  [ ok ] I5 last_err clear = 0x00000000
+
+-- I6 : host stalls the read 4 cycles before every beat
+  [ ok ] I6 RRESP = 2'b00
+  [ ok ] I6 beat = 0x11000000
+  [ ok ] I6 beat = 0x11100001
+  [ ok ] I6 beat = 0x11200002
+  [ ok ] I6 beat = 0x11300003
+  [ ok ] I6 beat = 0x11400004
+  [ ok ] I6 beat = 0x11500005
+  [ ok ] I6 beat = 0x11600006
+  [ ok ] I6 beat = 0x11700007
+
+-- I7 : asynchronous reset in the middle of a write burst
+  [ ok ] I7 idle after reset = 0x00000000
+  [ ok ] I7 BRESP after recovery = 2'b00
+  [ ok ] I7 beat after recovery = 0x7a7a0000
+  [ ok ] I7 beat after recovery = 0x7a8a0001
+  [ ok ] I7 beat after recovery = 0x7a9a0002
+  [ ok ] I7 beat after recovery = 0x7aaa0003
+  aborted burst left mem[0x600] = 0x77000000, mem[0x604] = 0x77100001
+  (not asserted: beats still inside the channel pipeline when
+   reset hit are discarded, which is correct)
+
+-- I8 : 32-beat write and read, sustained throughput
+  [ ok ] I8 BRESP = 2'b00
+  [ ok ] I8 RRESP = 2'b00
+  [ ok ] I8 beat = 0x88000000
+  [ ok ] I8 beat = 0x88100001
+  [ ok ] I8 beat = 0x88200002
+  [ ok ] I8 beat = 0x88300003
+  [ ok ] I8 beat = 0x88400004
+  [ ok ] I8 beat = 0x88500005
+  [ ok ] I8 beat = 0x88600006
+  [ ok ] I8 beat = 0x88700007
+  [ ok ] I8 beat = 0x88800008
+  [ ok ] I8 beat = 0x88900009
+  [ ok ] I8 beat = 0x88a0000a
+  [ ok ] I8 beat = 0x88b0000b
+  [ ok ] I8 beat = 0x88c0000c
+  [ ok ] I8 beat = 0x88d0000d
+  [ ok ] I8 beat = 0x88e0000e
+  [ ok ] I8 beat = 0x88f0000f
+  [ ok ] I8 beat = 0x89000010
+  [ ok ] I8 beat = 0x89100011
+  [ ok ] I8 beat = 0x89200012
+  [ ok ] I8 beat = 0x89300013
+  [ ok ] I8 beat = 0x89400014
+  [ ok ] I8 beat = 0x89500015
+  [ ok ] I8 beat = 0x89600016
+  [ ok ] I8 beat = 0x89700017
+  [ ok ] I8 beat = 0x89800018
+  [ ok ] I8 beat = 0x89900019
+  [ ok ] I8 beat = 0x89a0001a
+  [ ok ] I8 beat = 0x89b0001b
+  [ ok ] I8 beat = 0x89c0001c
+  [ ok ] I8 beat = 0x89d0001d
+  [ ok ] I8 beat = 0x89e0001e
+  [ ok ] I8 beat = 0x89f0001f
+
+  32-beat write : 35 cycles  (3 cycles of fixed overhead)
+  32-beat read  : 34 cycles  (2 cycles of fixed overhead)
+  32 beats cannot take fewer than 32 cycles, so the overhead
+  above is the whole cost of the pipeline; it does not grow
+  with burst length.
+
+==== Level 3 result : 77 checks, 0 failure(s) ====
+TEST PASSED
+
+E:\FPGA_Project\sim\tb_axi4_top.v:449: $finish called at 2246000 (1ps)

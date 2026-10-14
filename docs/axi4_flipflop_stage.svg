@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 270" width="1280" height="540"><style>
+text{fill:#1E2A3B;font-family:'Nunito','Segoe UI',Arial,sans-serif}
+.t{font-size:14px;font-weight:800}
+.s{font-size:11.5px;fill:#5B6B80}
+.m{font-size:11px;font-family:Consolas,'Cascadia Mono',monospace;fill:#5B6B80}
+.lb{font-size:11px;font-weight:600;fill:#5B6B80}
+.band{font-size:10.5px;font-weight:800;letter-spacing:.12em;fill:#5B6B80}
+.hand{font-family:'Segoe UI',Arial,sans-serif;font-style:italic;font-size:13px;font-weight:600}
+.wire{stroke:#34445A;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.wire-ff{stroke:#C98A00;stroke-width:2;fill:none;stroke-linecap:round;stroke-dasharray:5 4}
+.note{fill:#FFFFFF;stroke:#8A97A8;stroke-width:1.4;stroke-dasharray:4 3}
+</style><rect width="640" height="270" fill="#F5F7FA"/>
+          <defs>
+            <marker id="bh" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M1 1 L9 5 L1 9 z" style="fill:#34445A"/>
+            </marker>
+            <marker id="bhff" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M1 1 L9 5 L1 9 z" style="fill:#C98A00"/>
+            </marker>
+          </defs>
+          <line class="wire" x1="20" y1="90" x2="168" y2="90" marker-end="url(#bh)"/>
+          <text class="lb" x="20" y="76">in_valid + in_data</text>
+          <text class="s" x="20" y="112">from the sender</text>
+
+          <rect x="170" y="55" width="230" height="70" rx="14" style="fill:#FFE9A8;stroke:#C98A00;stroke-width:2"/>
+          <text class="t" x="285" y="86" text-anchor="middle">Output register</text>
+          <text class="m" x="285" y="106" text-anchor="middle">out_data, out_valid</text>
+
+          <line class="wire" x1="400" y1="90" x2="600" y2="90" marker-end="url(#bh)"/>
+          <text class="lb" x="410" y="76">out_valid + out_data</text>
+          <text class="s" x="410" y="112">to the receiver</text>
+
+          <rect x="170" y="165" width="230" height="70" rx="14" style="fill:#FFE9A8;stroke:#C98A00;stroke-width:2;stroke-dasharray:6 4"/>
+          <text class="t" x="285" y="196" text-anchor="middle">Skid slot</text>
+          <text class="m" x="285" y="216" text-anchor="middle">skid_data, skid_valid</text>
+
+          <path class="wire" d="M110 90 L110 200 L168 200" marker-end="url(#bh)"/>
+          <text class="s" x="102" y="146" text-anchor="end">output stuck,</text>
+          <text class="s" x="102" y="162" text-anchor="end">park the beat</text>
+
+          <line class="wire" x1="285" y1="163" x2="285" y2="127" marker-end="url(#bh)"/>
+          <text class="s" x="297" y="141">receiver ready:</text>
+          <text class="s" x="297" y="157">promote the slot</text>
+
+          <path class="wire-ff" d="M168 224 L20 224" marker-end="url(#bhff)"/>
+          <text class="lb" x="20" y="246" style="fill:#C98A00">in_ready = ~skid_valid</text>
+
+          <g transform="rotate(1 520 200)">
+            <rect class="note" x="430" y="165" width="190" height="70" rx="10"/>
+            <text class="hand" x="444" y="190">Slot full → in_ready</text>
+            <text class="hand" x="444" y="210">drops at once, so a</text>
+            <text class="hand" x="444" y="228">third beat can't land.</text>
+          </g>
+        </svg>

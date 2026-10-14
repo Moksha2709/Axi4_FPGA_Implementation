@@ -1,0 +1,75 @@
+﻿VCD info: dumpfile tb_axi4_slave.vcd opened for output.
+
+==== Level 1 : axi4_slave unit test ====
+
+-- A1 : single-beat write and read at 0x000
+  [ ok ] A1 BRESP = 2'b00
+  [ ok ] A1 RDATA = 0xdeadbeef
+  [ ok ] A1 RRESP = 2'b00
+
+-- A2 : INCR burst of 5 beats at 0x100
+  [ ok ] A2 BRESP = 2'b00
+  [ ok ] A2 beat = 0x10000001
+  [ ok ] A2 beat = 0x11010102
+  [ ok ] A2 beat = 0x12020203
+  [ ok ] A2 beat = 0x13030304
+  [ ok ] A2 beat = 0x14040405
+
+-- A3 : WRAP burst of 4 beats starting mid-window (0x208)
+  [ ok ] A3 BRESP = 2'b00
+  [ ok ] A3 mem[0x200] = 0xcccc2222
+  [ ok ] A3 mem[0x204] = 0xdddd3333
+  [ ok ] A3 mem[0x208] = 0xaaaa0000
+  [ ok ] A3 mem[0x20C] = 0xbbbb1111
+  [ ok ] A3 wrap beat0 = 0xaaaa0000
+  [ ok ] A3 wrap beat1 = 0xbbbb1111
+  [ ok ] A3 wrap beat2 = 0xcccc2222
+  [ ok ] A3 wrap beat3 = 0xdddd3333
+
+-- A4 : FIXED burst of 4 beats, all to 0x300
+  [ ok ] A4 BRESP = 2'b00
+  [ ok ] A4 last beat wins = 0x000000e3
+  [ ok ] A4 next word untouched = 0x00000000
+
+-- A5 : WSTRB byte merging inside a burst
+  [ ok ] A5 BRESP = 2'b00
+  [ ok ] A5 mem[0x400] = 0xffffff44
+  [ ok ] A5 mem[0x404] = 0x5566ffff
+
+-- A6 : RREADY deasserted 3 cycles before every beat
+  [ ok ] A6 beat = 0x10000001
+  [ ok ] A6 beat = 0x11010102
+  [ ok ] A6 beat = 0x12020203
+  [ ok ] A6 beat = 0x13030304
+  [ ok ] A6 beat = 0x14040405
+
+-- A7 : BREADY held low for 5 cycles, W beats bubbly
+  [ ok ] A7 BRESP = 2'b00
+  [ ok ] A7 beat = 0x70000007
+  [ ok ] A7 beat = 0x71010108
+  [ ok ] A7 beat = 0x72020209
+  [ ok ] A7 beat = 0x7303030a
+
+-- A8 : address 0x2000 is outside the 4 KiB region -> DECERR
+  [ ok ] A8 BRESP = 2'b11
+  [ ok ] A8 RRESP = 2'b11
+  [ ok ] A8 RDATA zeroed = 0x00000000
+
+-- A9 : identifier echo
+  [ ok ] A9 BID echoes AWID = 0x0000000a
+  [ ok ] A9 RID echoes ARID = 0x00000005
+
+-- A10 : unsupported requests -> SLVERR
+  [ ok ] A10 reserved burst type (write) = 2'b10
+  [ ok ] A10 reserved burst type (read) = 2'b10
+  [ ok ] A10 illegal WRAP length = 2'b10
+  [ ok ] A10 AxSIZE wider than bus = 2'b10
+
+-- A11 : narrow 1-byte beats assemble one word at 0x800
+  [ ok ] A11 BRESP = 2'b00
+  [ ok ] A11 assembled word = 0x44332211
+
+==== Level 1 result : 45 checks, 0 failure(s) ====
+TEST PASSED
+
+E:\FPGA_Project\sim\tb_axi4_slave.v:517: $finish called at 1546000 (1ps)
