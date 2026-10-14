@@ -1,14 +1,12 @@
 ﻿VCD info: dumpfile tb_axi4_top.vcd opened for output.
 
-==== Level 3 : axi4_top integration test  (PIPE_STAGE = 1) ====
-     all five channels pass through a D-flip-flop stage
+==== Level 3 : axi4_top integration test ====
 
 -- I1 : 8-beat INCR write at 0x100, then read it back
   [ ok ] I1 BRESP = 2'b00
-  [ ok ] I1 BID echoed = 0x00000001
-  write took 13 cycles
+  write took 11 cycles
   [ ok ] I1 RRESP = 2'b00
-  read took 12 cycles
+  read took 10 cycles
   [ ok ] I1 beat = 0x11000000
   [ ok ] I1 beat = 0x11100001
   [ ok ] I1 beat = 0x11200002
@@ -37,12 +35,6 @@
   [ ok ] I4 mem[0x408] = 0xff33ffff
   [ ok ] I4 mem[0x40C] = 0x44ffffff
 
--- I5 : out-of-range address 0x2000 -> DECERR at the host
-  [ ok ] I5 write BRESP = 2'b11
-  [ ok ] I5 read RRESP = 2'b11
-  [ ok ] I5 read data zeroed = 0x00000000
-  [ ok ] I5 last_err clear = 0x00000000
-
 -- I6 : host stalls the read 4 cycles before every beat
   [ ok ] I6 RRESP = 2'b00
   [ ok ] I6 beat = 0x11000000
@@ -61,9 +53,7 @@
   [ ok ] I7 beat after recovery = 0x7a8a0001
   [ ok ] I7 beat after recovery = 0x7a9a0002
   [ ok ] I7 beat after recovery = 0x7aaa0003
-  aborted burst left mem[0x600] = 0x00000000, mem[0x604] = 0x00000000
-  (not asserted: beats still inside the channel pipeline when
-   reset hit are discarded, which is correct)
+  aborted burst left mem[0x600] = 0x77000000, mem[0x604] = 0x77100001
 
 -- I8 : 32-beat write and read, sustained throughput
   [ ok ] I8 BRESP = 2'b00
@@ -101,13 +91,12 @@
   [ ok ] I8 beat = 0x89e0001e
   [ ok ] I8 beat = 0x89f0001f
 
-  32-beat write : 37 cycles  (5 cycles of fixed overhead)
-  32-beat read  : 36 cycles  (4 cycles of fixed overhead)
+  32-beat write : 35 cycles  (3 cycles of fixed overhead)
+  32-beat read  : 34 cycles  (2 cycles of fixed overhead)
   32 beats cannot take fewer than 32 cycles, so the overhead
-  above is the whole cost of the pipeline; it does not grow
-  with burst length.
+  above is the fixed cost of the address and response handshakes.
 
-==== Level 3 result : 77 checks, 0 failure(s) ====
+==== Level 3 result : 72 checks, 0 failure(s) ====
 TEST PASSED
 
-E:\FPGA_Project\sim\tb_axi4_top.v:449: $finish called at 2576000 (1ps)
+E:\FPGA_Project\sim\tb_axi4_top.v:401: $finish called at 2136000 (1ps)

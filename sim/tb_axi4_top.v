@@ -1,23 +1,15 @@
 //=============================================================================
 // tb_axi4_top.v  --  Level 3 : integrated AXI4 system testbench
 //
-// Drives axi4_top, which is the manager wired to the subordinate through the
-// five D-flip-flop (skid buffer) channel stages.  Everything is exercised from
-// the host ports only, exactly as real logic in the fabric would use it.
-//
-// The parameter PIPE_STAGE is forwarded to the DUT so the same testbench can
-// be run with the registered channels (the default, 1) or with the modules
-// wired directly (0):
-//     iverilog -Ptb_axi4_top.PIPE_STAGE=0 ...
-// The reported cycle counts then show what the pipeline stages cost: latency
-// goes up by a fixed handful of clocks, throughput does not change.
+// Drives axi4_top, which is the manager wired directly to the subordinate.
+// Everything is exercised from the host ports only, exactly as real logic in
+// the fabric would use it.
 //
 // Tests
 //   I1 8-beat INCR write then read back
 //   I2 WRAP burst written, then read back linearly
 //   I3 FIXED burst: every beat lands on the same address
 //   I4 WSTRB byte merging across a burst
-//   I5 DECERR from an out-of-range address, reported at the host
 //   I6 read back-pressure from the host mid-burst
 //   I7 asynchronous reset in the middle of a write burst, then recovery
 //   I8 32-beat write and read, used to measure sustained throughput
@@ -27,8 +19,6 @@
 
 module tb_axi4_top;
 
-    parameter PIPE_STAGE = 1;              // overridable from the command line
-
     localparam CLK_PERIOD    = 10;
     localparam ID_WIDTH      = 4;
     localparam ADDR_WIDTH    = 32;
@@ -36,7 +26,6 @@ module tb_axi4_top;
     localparam MEM_ADDR_BITS = 12;
 
     localparam [1:0] RESP_OKAY   = 2'b00;
-    localparam [1:0] RESP_DECERR = 2'b11;
 
     localparam [1:0] BURST_FIXED = 2'b00;
     localparam [1:0] BURST_INCR  = 2'b01;
@@ -53,11 +42,9 @@ module tb_axi4_top;
     reg  [1:0]            cmd_burst       = BURST_INCR;
     reg                   cmd_start_write = 0;
     reg                   cmd_start_read  = 0;
-    wire                  cmd_busy;
+    wire                  cmd_busy = (uut.u_master.state != 3'd0);  // watched inside the DUT
     wire                  cmd_done;
     wire [1:0]            cmd_resp;
-    wire [ID_WIDTH-1:0]   cmd_resp_id;
-    wire                  cmd_last_err;
 
     reg  [DATA_WIDTH-1:0]     hw_data  = 0;
     reg  [(DATA_WIDTH/8)-1:0] hw_strb  = 0;
@@ -65,8 +52,6 @@ module tb_axi4_top;
     wire                      hw_ready;
 
     wire [DATA_WIDTH-1:0] hr_data;
-    wire [1:0]            hr_resp;
-    wire                  hr_last;
     wire                  hr_valid;
     reg                   hr_ready = 0;
 
@@ -84,8 +69,7 @@ module tb_axi4_top;
         .ID_WIDTH      (ID_WIDTH),
         .ADDR_WIDTH    (ADDR_WIDTH),
         .DATA_WIDTH    (DATA_WIDTH),
-        .MEM_ADDR_BITS (MEM_ADDR_BITS),
-        .PIPE_STAGE    (PIPE_STAGE)
+        .MEM_ADDR_BITS (MEM_ADDR_BITS)
     ) uut (
         .ACLK            (ACLK),
         .ARESETn         (ARESETn),
@@ -97,11 +81,8 @@ module tb_axi4_top;
         .cmd_len         (cmd_len),
         .cmd_size        (cmd_size),
         .cmd_burst       (cmd_burst),
-        .cmd_busy        (cmd_busy),
         .cmd_done        (cmd_done),
         .cmd_resp        (cmd_resp),
-        .cmd_resp_id     (cmd_resp_id),
-        .cmd_last_err    (cmd_last_err),
 
         .hw_data         (hw_data),
         .hw_strb         (hw_strb),
@@ -109,8 +90,6 @@ module tb_axi4_top;
         .hw_ready        (hw_ready),
 
         .hr_data         (hr_data),
-        .hr_resp         (hr_resp),
-        .hr_last         (hr_last),
         .hr_valid        (hr_valid),
         .hr_ready        (hr_ready)
     );
@@ -232,11 +211,6 @@ module tb_axi4_top;
                 end
 
                 rbuf[b] = hr_data;
-                if (hr_resp !== RESP_OKAY && hr_resp !== cmd_resp) begin
-                    // non-OKAY beats are legal; cmd_resp accumulates them
-                end
-                if (hr_last && (b != len))  fail("hr_last asserted too early");
-                if (!hr_last && (b == len)) fail("hr_last missing on final beat");
 
                 step;
                 if (stall > 0) hr_ready = 1'b0;
@@ -270,12 +244,7 @@ module tb_axi4_top;
         $dumpfile("tb_axi4_top.vcd");
         $dumpvars(0, tb_axi4_top);
 
-        $display("\n==== Level 3 : axi4_top integration test  (PIPE_STAGE = %0d) ====",
-                 PIPE_STAGE);
-        if (PIPE_STAGE != 0)
-            $display("     all five channels pass through a D-flip-flop stage");
-        else
-            $display("     manager wired directly to subordinate (no FF stage)");
+        $display("\n==== Level 3 : axi4_top integration test ====");
 
         ARESETn = 1'b0;
         repeat (5) @(posedge ACLK);
@@ -288,7 +257,6 @@ module tb_axi4_top;
         fill_pattern(8'd7, 32'h1100_0000);
         host_write(4'h1, 32'h0000_0100, 8'd7, 3'd2, BURST_INCR, 0);
         chk2 ("I1 BRESP", cmd_resp, RESP_OKAY);
-        chk32("I1 BID echoed", {28'd0, cmd_resp_id}, 32'h0000_0001);
         $display("  write took %0d cycles", cycles_used);
 
         host_read(4'h1, 32'h0000_0100, 8'd7, 3'd2, BURST_INCR, 0);
@@ -346,16 +314,6 @@ module tb_axi4_top;
         chk32("I4 mem[0x40C]", rbuf[3], 32'h44FF_FFFF);
 
         //=====================================================================
-        $display("\n-- I5 : out-of-range address 0x2000 -> DECERR at the host");
-        fill_pattern(8'd2, 32'hBAD0_0000);
-        host_write(4'h5, 32'h0000_2000, 8'd2, 3'd2, BURST_INCR, 0);
-        chk2("I5 write BRESP", cmd_resp, RESP_DECERR);
-        host_read(4'h5, 32'h0000_2000, 8'd2, 3'd2, BURST_INCR, 0);
-        chk2 ("I5 read RRESP", cmd_resp, RESP_DECERR);
-        chk32("I5 read data zeroed", rbuf[0], 32'h0000_0000);
-        chk32("I5 last_err clear", {31'd0, cmd_last_err}, 32'h0);
-
-        //=====================================================================
         $display("\n-- I6 : host stalls the read 4 cycles before every beat");
         host_read(4'h6, 32'h0000_0100, 8'd7, 3'd2, BURST_INCR, 4);
         chk2("I6 RRESP", cmd_resp, RESP_OKAY);
@@ -404,18 +362,13 @@ module tb_axi4_top;
         for (b = 0; b <= 3; b = b + 1)
             chk32("I7 beat after recovery", rbuf[b],
                   32'h7A7A_0000 + (b * 32'h0010_0001));
-        // How much of the aborted burst actually landed is NOT something to
-        // assert.  The memory array itself is not reset, but the beats may
-        // still have been sitting inside the channel pipeline registers when
-        // reset hit, in which case they were discarded.  With PIPE_STAGE = 1
-        // both beats are typically lost; with PIPE_STAGE = 0 they typically
-        // land.  Either is correct: a burst killed by reset has no defined
-        // outcome.  Report it rather than check it.
+        // How much of the aborted burst landed in memory is NOT asserted.  The
+        // memory array itself is not reset, so beats accepted before the reset
+        // remain.  A burst killed by reset has no defined outcome, so it is
+        // reported rather than checked.
         host_read(4'h7, 32'h0000_0600, 8'd1, 3'd2, BURST_INCR, 0);
         $display("  aborted burst left mem[0x600] = 0x%08h, mem[0x604] = 0x%08h",
                  rbuf[0], rbuf[1]);
-        $display("  (not asserted: beats still inside the channel pipeline when");
-        $display("   reset hit are discarded, which is correct)");
 
         //=====================================================================
         $display("\n-- I8 : 32-beat write and read, sustained throughput");
@@ -435,8 +388,7 @@ module tb_axi4_top;
         $display("  32-beat read  : %0d cycles  (%0d cycles of fixed overhead)",
                  rd_cycles_32, rd_cycles_32 - 32);
         $display("  32 beats cannot take fewer than 32 cycles, so the overhead");
-        $display("  above is the whole cost of the pipeline; it does not grow");
-        $display("  with burst length.");
+        $display("  above is the fixed cost of the address and response handshakes.");
         if (wr_cycles_32 > 32 + 20) fail("write throughput worse than 1 beat/clock");
         if (rd_cycles_32 > 32 + 20) fail("read throughput worse than 1 beat/clock");
 

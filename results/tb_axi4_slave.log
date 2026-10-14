@@ -50,26 +50,15 @@
   [ ok ] A7 beat = 0x72020209
   [ ok ] A7 beat = 0x7303030a
 
--- A8 : address 0x2000 is outside the 4 KiB region -> DECERR
-  [ ok ] A8 BRESP = 2'b11
-  [ ok ] A8 RRESP = 2'b11
-  [ ok ] A8 RDATA zeroed = 0x00000000
-
 -- A9 : identifier echo
   [ ok ] A9 BID echoes AWID = 0x0000000a
   [ ok ] A9 RID echoes ARID = 0x00000005
-
--- A10 : unsupported requests -> SLVERR
-  [ ok ] A10 reserved burst type (write) = 2'b10
-  [ ok ] A10 reserved burst type (read) = 2'b10
-  [ ok ] A10 illegal WRAP length = 2'b10
-  [ ok ] A10 AxSIZE wider than bus = 2'b10
 
 -- A11 : narrow 1-byte beats assemble one word at 0x800
   [ ok ] A11 BRESP = 2'b00
   [ ok ] A11 assembled word = 0x44332211
 
-==== Level 1 result : 45 checks, 0 failure(s) ====
+==== Level 1 result : 38 checks, 0 failure(s) ====
 TEST PASSED
 
-E:\FPGA_Project\sim\tb_axi4_slave.v:517: $finish called at 1546000 (1ps)
+E:\FPGA_Project\sim\tb_axi4_slave.v:491: $finish called at 1266000 (1ps)

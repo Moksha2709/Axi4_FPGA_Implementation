@@ -1,120 +1,111 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 540" width="2000" height="1080"><style>
-text{fill:#1E2A3B;font-family:'Nunito','Segoe UI',Arial,sans-serif}
-.t{font-size:14px;font-weight:800}
-.s{font-size:11.5px;fill:#5B6B80}
-.m{font-size:11px;font-family:Consolas,'Cascadia Mono',monospace;fill:#5B6B80}
-.lb{font-size:11px;font-weight:600;fill:#5B6B80}
-.band{font-size:10.5px;font-weight:800;letter-spacing:.12em;fill:#5B6B80}
-.hand{font-family:'Segoe UI',Arial,sans-serif;font-style:italic;font-size:13px;font-weight:600}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 480" width="2160" height="960" role="img" aria-label="Block diagram. Your logic drives axi4_master through a command port and two data streams. The master is wired directly to axi4_slave over the five AXI4 channels AW, W, B, AR and R. The slave has a write engine, a read engine and a 4 KiB memory.">
+<style>
+text{fill:#1E2A3B;font-family:'Segoe UI','Nunito',Arial,sans-serif}
+.t{font-size:15px;font-weight:700}
+.s{font-size:12px;fill:#4F5F74}
+.m{font-size:11.5px;font-family:Consolas,'Cascadia Mono',monospace;fill:#4F5F74}
+.sg{font-size:11.5px;font-family:Consolas,'Cascadia Mono',monospace;fill:#1E2A3B}
+.lb{font-size:12px;font-weight:600;fill:#4F5F74}
+.band{font-size:11px;font-weight:700;letter-spacing:.12em;fill:#4F5F74}
+.pt{font-size:13px;font-weight:700}
 .wire{stroke:#34445A;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.wire-ff{stroke:#C98A00;stroke-width:2;fill:none;stroke-linecap:round;stroke-dasharray:5 4}
-.note{fill:#FFFFFF;stroke:#8A97A8;stroke-width:1.4;stroke-dasharray:4 3}
-</style><rect width="1000" height="540" fill="#F5F7FA"/>
-          <defs>
-            <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M1 1 L9 5 L1 9 z" style="fill:#34445A"/>
-            </marker>
-          </defs>
+</style>
+<defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M1 1 L9 5 L1 9 z" fill="#34445A"/>
+  </marker>
+</defs>
+<rect width="1080" height="480" fill="#F5F7FA"/>
 
-          <rect x="20" y="60" width="150" height="380" rx="18" style="fill:#E8ECF2;stroke:#34445A;stroke-width:1.6"/>
-          <text class="t" x="95" y="92" text-anchor="middle">Your logic</text>
-          <text class="s" x="95" y="110" text-anchor="middle">the host side</text>
-          <text class="s" x="95" y="290" text-anchor="middle">starts bursts</text>
-          <text class="s" x="95" y="310" text-anchor="middle">feeds write beats</text>
-          <text class="s" x="95" y="330" text-anchor="middle">drains read beats</text>
+<!-- host -->
+<rect x="20" y="40" width="120" height="400" rx="16" fill="#E8ECF2" stroke="#34445A" stroke-width="1.6"/>
+<text class="t" x="80" y="70" text-anchor="middle">Your logic</text>
+<text class="s" x="80" y="88" text-anchor="middle">the host side</text>
+<text class="s" x="80" y="300" text-anchor="middle">starts bursts</text>
+<text class="s" x="80" y="320" text-anchor="middle">feeds write beats</text>
+<text class="s" x="80" y="340" text-anchor="middle">takes read beats</text>
 
-          <line class="wire" x1="170" y1="130" x2="248" y2="130" marker-end="url(#ah)"/>
-          <text class="lb" x="209" y="122" text-anchor="middle">cmd port</text>
-          <line class="wire" x1="170" y1="190" x2="248" y2="190" marker-end="url(#ah)"/>
-          <text class="lb" x="209" y="182" text-anchor="middle">write beats</text>
-          <line class="wire" x1="248" y1="250" x2="172" y2="250" marker-end="url(#ah)"/>
-          <text class="lb" x="209" y="242" text-anchor="middle">done + resp</text>
-          <line class="wire" x1="248" y1="410" x2="172" y2="410" marker-end="url(#ah)"/>
-          <text class="lb" x="209" y="402" text-anchor="middle">read beats</text>
+<!-- master -->
+<rect x="240" y="40" width="180" height="400" rx="16" fill="#D6E6FF" stroke="#3B6FD0" stroke-width="2"/>
+<text class="t" x="330" y="70" text-anchor="middle">axi4_master</text>
+<text class="m" x="330" y="88" text-anchor="middle">axi4_master.v</text>
+<text class="s" x="256" y="300">copies the burst description</text>
+<text class="s" x="256" y="320">counts the beats</text>
+<text class="s" x="256" y="340">drives WLAST</text>
+<text class="s" x="256" y="360">one burst at a time</text>
 
-          <rect x="250" y="60" width="180" height="380" rx="18" style="fill:#D6E6FF;stroke:#3B6FD0;stroke-width:2"/>
-          <text class="t" x="340" y="92" text-anchor="middle">axi4_master</text>
-          <text class="m" x="340" y="110" text-anchor="middle">axi4_master.v</text>
-          <text class="s" x="268" y="290">latches the descriptor</text>
-          <text class="s" x="268" y="310">counts the beats</text>
-          <text class="s" x="268" y="330">drives WLAST</text>
-          <text class="s" x="268" y="350">one burst at a time</text>
+<!-- slave -->
+<rect x="720" y="40" width="340" height="400" rx="16" fill="#E6DEFA" stroke="#7152C9" stroke-width="2"/>
+<text class="t" x="890" y="64" text-anchor="middle">axi4_slave</text>
+<text class="m" x="890" y="81" text-anchor="middle">axi4_slave.v</text>
 
-          <text class="band" x="540" y="76" text-anchor="middle">WRITE</text>
-          <line x1="440" y1="290" x2="640" y2="290" style="stroke:#8A97A8;stroke-width:1.2;stroke-dasharray:3 5"/>
-          <text class="band" x="540" y="310" text-anchor="middle">READ</text>
+<rect x="740" y="100" width="150" height="170" rx="12" fill="#F5F7FA" stroke="#7152C9" stroke-width="1.6"/>
+<text class="t" x="815" y="190" text-anchor="middle">Write engine</text>
+<text class="m" x="815" y="210" text-anchor="middle">IDLE, DATA, RESP</text>
+<text class="s" x="815" y="236" text-anchor="middle">WSTRB per byte</text>
 
-          <line class="wire" x1="430" y1="130" x2="503" y2="130" marker-end="url(#ah)"/>
-          <text class="lb" x="467" y="122" text-anchor="middle">addr+burst</text>
-          <line class="wire" x1="430" y1="190" x2="503" y2="190" marker-end="url(#ah)"/>
-          <text class="lb" x="467" y="182" text-anchor="middle">data+WLAST</text>
-          <line class="wire" x1="503" y1="250" x2="432" y2="250" marker-end="url(#ah)"/>
-          <text class="lb" x="467" y="242" text-anchor="middle">resp+id</text>
-          <line class="wire" x1="430" y1="350" x2="503" y2="350" marker-end="url(#ah)"/>
-          <text class="lb" x="467" y="342" text-anchor="middle">addr+burst</text>
-          <line class="wire" x1="503" y1="410" x2="432" y2="410" marker-end="url(#ah)"/>
-          <text class="lb" x="467" y="402" text-anchor="middle">data+RLAST</text>
+<rect x="740" y="290" width="150" height="130" rx="12" fill="#F5F7FA" stroke="#7152C9" stroke-width="1.6"/>
+<text class="t" x="815" y="350" text-anchor="middle">Read engine</text>
+<text class="m" x="815" y="370" text-anchor="middle">IDLE, DATA</text>
+<text class="s" x="815" y="396" text-anchor="middle">1 beat per clock</text>
 
-          <g style="fill:#FFE9A8;stroke:#C98A00;stroke-width:2">
-            <rect x="505" y="110" width="70" height="40" rx="10"/>
-            <rect x="505" y="170" width="70" height="40" rx="10"/>
-            <rect x="505" y="230" width="70" height="40" rx="10"/>
-            <rect x="505" y="330" width="70" height="40" rx="10"/>
-            <rect x="505" y="390" width="70" height="40" rx="10"/>
-          </g>
-          <text class="t" x="540" y="135" text-anchor="middle">AW</text>
-          <text class="t" x="540" y="195" text-anchor="middle">W</text>
-          <text class="t" x="540" y="255" text-anchor="middle">B</text>
-          <text class="t" x="540" y="355" text-anchor="middle">AR</text>
-          <text class="t" x="540" y="415" text-anchor="middle">R</text>
+<rect x="950" y="120" width="90" height="290" rx="12" fill="#D9F0E3" stroke="#2E8B57" stroke-width="2"/>
+<text class="t" x="995" y="256" text-anchor="middle">4 KiB</text>
+<text class="s" x="995" y="275" text-anchor="middle">memory</text>
+<text class="s" x="995" y="293" text-anchor="middle">1024 × 32</text>
 
-          <rect x="640" y="60" width="340" height="380" rx="18" style="fill:#E6DEFA;stroke:#7152C9;stroke-width:2"/>
-          <text class="t" x="810" y="86" text-anchor="middle">axi4_slave</text>
-          <text class="m" x="810" y="103" text-anchor="middle">axi4_slave.v</text>
+<line class="wire" x1="890" y1="185" x2="948" y2="185" marker-end="url(#ah)"/>
+<text class="lb" x="919" y="177" text-anchor="middle">writes</text>
+<line class="wire" x1="948" y1="365" x2="892" y2="365" marker-end="url(#ah)"/>
+<text class="lb" x="920" y="357" text-anchor="middle">reads</text>
 
-          <rect x="660" y="112" width="150" height="160" rx="14" style="fill:#F5F7FA;stroke:#7152C9;stroke-width:1.6"/>
-          <text class="t" x="735" y="146" text-anchor="middle">Write engine</text>
-          <text class="m" x="735" y="166" text-anchor="middle">IDLE→DATA→RESP</text>
-          <text class="s" x="735" y="212" text-anchor="middle">WSTRB per byte</text>
-          <text class="s" x="735" y="230" text-anchor="middle">one B per burst</text>
+<!-- host <-> master -->
+<line class="wire" x1="140" y1="115" x2="238" y2="115" marker-end="url(#ah)"/>
+<text class="sg" x="189" y="107" text-anchor="middle">cmd_*</text>
+<line class="wire" x1="140" y1="190" x2="238" y2="190" marker-end="url(#ah)"/>
+<text class="sg" x="189" y="182" text-anchor="middle">hw_*</text>
+<line class="wire" x1="238" y1="255" x2="142" y2="255" marker-end="url(#ah)"/>
+<text class="sg" x="189" y="233" text-anchor="middle">cmd_done</text>
+<text class="sg" x="189" y="247" text-anchor="middle">cmd_resp</text>
+<line class="wire" x1="238" y1="400" x2="142" y2="400" marker-end="url(#ah)"/>
+<text class="sg" x="189" y="392" text-anchor="middle">hr_*</text>
 
-          <rect x="660" y="300" width="150" height="130" rx="14" style="fill:#F5F7FA;stroke:#7152C9;stroke-width:1.6"/>
-          <text class="t" x="735" y="326" text-anchor="middle">Read engine</text>
-          <text class="m" x="735" y="346" text-anchor="middle">IDLE→DATA</text>
-          <text class="s" x="735" y="388" text-anchor="middle">1 beat per clock</text>
+<!-- channels: master <-> slave, wired directly -->
+<text class="band" x="436" y="78">WRITE</text>
+<line x1="436" y1="283" x2="716" y2="283" stroke="#8A97A8" stroke-width="1.2" stroke-dasharray="3 5"/>
+<text class="band" x="436" y="300">READ</text>
 
-          <rect x="870" y="130" width="92" height="280" rx="14" style="fill:#D9F0E3;stroke:#2E8B57;stroke-width:2"/>
-          <text class="t" x="916" y="258" text-anchor="middle">4 KiB</text>
-          <text class="s" x="916" y="277" text-anchor="middle">memory</text>
-          <text class="s" x="916" y="295" text-anchor="middle">1024 × 32</text>
+<line class="wire" x1="420" y1="135" x2="738" y2="135" marker-end="url(#ah)"/>
+<text class="sg" x="580" y="104" text-anchor="middle">AWID AWADDR AWLEN AWSIZE</text>
+<text class="sg" x="580" y="118" text-anchor="middle">AWBURST AWVALID AWREADY</text>
 
-          <!-- flip-flop stage <-> slave wires, drawn after the slave box so they sit on top of it -->
-          <line class="wire" x1="577" y1="130" x2="658" y2="130" marker-end="url(#ah)"/>
-          <line class="wire" x1="577" y1="190" x2="658" y2="190" marker-end="url(#ah)"/>
-          <line class="wire" x1="658" y1="250" x2="577" y2="250" marker-end="url(#ah)"/>
-          <line class="wire" x1="577" y1="350" x2="658" y2="350" marker-end="url(#ah)"/>
-          <line class="wire" x1="658" y1="410" x2="577" y2="410" marker-end="url(#ah)"/>
+<line class="wire" x1="420" y1="200" x2="738" y2="200" marker-end="url(#ah)"/>
+<text class="sg" x="580" y="170" text-anchor="middle">WDATA WSTRB WLAST</text>
+<text class="sg" x="580" y="184" text-anchor="middle">WVALID WREADY</text>
 
-          <line class="wire" x1="810" y1="200" x2="868" y2="200" marker-end="url(#ah)"/>
-          <text class="lb" x="839" y="192" text-anchor="middle">writes</text>
-          <line class="wire" x1="868" y1="370" x2="812" y2="370" marker-end="url(#ah)"/>
-          <text class="lb" x="840" y="362" text-anchor="middle">reads</text>
+<line class="wire" x1="738" y1="258" x2="422" y2="258" marker-end="url(#ah)"/>
+<text class="sg" x="580" y="228" text-anchor="middle">BID BRESP</text>
+<text class="sg" x="580" y="242" text-anchor="middle">BVALID BREADY</text>
 
-          <g transform="rotate(-1.4 340 488)">
-            <rect class="note" x="240" y="458" width="200" height="62" rx="10"/>
-            <text class="hand" x="254" y="480">Latched once at start,</text>
-            <text class="hand" x="254" y="498">so the bus payload never</text>
-            <text class="hand" x="254" y="516">moves mid-burst.</text>
-          </g>
-          <g transform="rotate(1.2 540 488)">
-            <rect class="note" x="455" y="458" width="170" height="62" rx="10"/>
-            <text class="hand" x="469" y="480">Every wire between the</text>
-            <text class="hand" x="469" y="498">modules is a flip-flop.</text>
-            <text class="hand" x="469" y="516">+2 cycles, same speed.</text>
-          </g>
-          <g transform="rotate(-1 815 488)">
-            <rect class="note" x="650" y="458" width="330" height="62" rx="10"/>
-            <text class="hand" x="664" y="486">A bad request still drains the whole burst,</text>
-            <text class="hand" x="664" y="508">so the manager never hangs.</text>
-          </g>
-        </svg>
+<line class="wire" x1="420" y1="345" x2="738" y2="345" marker-end="url(#ah)"/>
+<text class="sg" x="580" y="314" text-anchor="middle">ARID ARADDR ARLEN ARSIZE</text>
+<text class="sg" x="580" y="328" text-anchor="middle">ARBURST ARVALID ARREADY</text>
+
+<line class="wire" x1="738" y1="405" x2="422" y2="405" marker-end="url(#ah)"/>
+<text class="sg" x="580" y="374" text-anchor="middle">RID RDATA RRESP RLAST</text>
+<text class="sg" x="580" y="388" text-anchor="middle">RVALID RREADY</text>
+
+<!-- channel name pills, centered on each arrow -->
+<g fill="#FFE9A8">
+  <rect x="553" y="122" width="54" height="26" rx="13"/>
+  <rect x="553" y="187" width="54" height="26" rx="13"/>
+  <rect x="553" y="245" width="54" height="26" rx="13"/>
+  <rect x="553" y="332" width="54" height="26" rx="13"/>
+  <rect x="553" y="392" width="54" height="26" rx="13"/>
+</g>
+<text class="pt" x="580" y="140" text-anchor="middle">AW</text>
+<text class="pt" x="580" y="205" text-anchor="middle">W</text>
+<text class="pt" x="580" y="263" text-anchor="middle">B</text>
+<text class="pt" x="580" y="350" text-anchor="middle">AR</text>
+<text class="pt" x="580" y="410" text-anchor="middle">R</text>
+</svg>

@@ -21,7 +21,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet('slave', 'master', 'top', 'top_direct', 'all')]
+    [ValidateSet('slave', 'master', 'top', 'all')]
     [string]$Suite = 'all',
 
     [switch]$Wave
@@ -37,7 +37,6 @@ $build = Join-Path $root 'build'
 if (-not (Test-Path $build)) { New-Item -ItemType Directory -Path $build | Out-Null }
 
 $rtlSrcs = @(
-    (Join-Path $rtl 'axi4_skid_buffer.v'),
     (Join-Path $rtl 'axi4_slave.v'),
     (Join-Path $rtl 'axi4_master.v'),
     (Join-Path $rtl 'axi4_top.v')
@@ -61,17 +60,11 @@ $suites = @{
         Sources = $rtlSrcs + @(Join-Path $sim 'tb_axi4_top.v')
         Out     = 'tb_axi4_top'
         Extra   = @()
-        Label   = 'Level 3 : integration, D-flip-flop channel stages'
-    }
-    'top_direct' = @{
-        Sources = $rtlSrcs + @(Join-Path $sim 'tb_axi4_top.v')
-        Out     = 'tb_axi4_top_direct'
-        Extra   = @('-Ptb_axi4_top.PIPE_STAGE=0')
-        Label   = 'Level 3 : integration, channels wired directly'
+        Label   = 'Level 3 : integration, manager wired to subordinate'
     }
 }
 
-if ($Suite -eq 'all') { $order = @('slave', 'master', 'top', 'top_direct') }
+if ($Suite -eq 'all') { $order = @('slave', 'master', 'top') }
 else                  { $order = @($Suite) }
 
 $results = @()
@@ -119,7 +112,7 @@ foreach ($r in $results) {
 
 if ($Wave) {
     $target = $order[-1]
-    $vcd    = Join-Path $build "$(($suites[$target]).Out -replace '_direct$','').vcd"
+    $vcd    = Join-Path $build "$(($suites[$target]).Out).vcd"
     if (Test-Path $vcd) {
         Write-Host ""
         Write-Host "opening $vcd in GTKWave" -ForegroundColor Cyan

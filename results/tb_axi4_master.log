@@ -4,7 +4,6 @@
 
 -- M1 : AWREADY stalled 4 cycles, 5-beat INCR write
   [ ok ] M1 BRESP = 2'b00
-  [ ok ] M1 BID echoed = 0x00000003
   [ ok ] M1 beats received = 5
   [ ok ] M1 WLAST beat index = 4
   [ ok ] M1 beat as seen by slave = 0x11110000
@@ -23,8 +22,6 @@
 
 -- M3 : ARREADY stalled 5 cycles, 5-beat INCR read
   [ ok ] M3 RRESP = 2'b00
-  [ ok ] M3 RID echoed = 0x00000007
-  [ ok ] M3 last_err clear = 0x00000000
   [ ok ] M3 beat = 0x00000100
   [ ok ] M3 beat = 0x00000200
   [ ok ] M3 beat = 0x00000300
@@ -42,14 +39,9 @@
   [ ok ] M5 beats delivered = 4
   [ ok ] M5 beat0 kept original address = 0x00000500
   [ ok ] M5 beat3 = 0x00000800
-  [ ok ] M5 RID still 0x9 = 0x00000009
 
 -- M6 : SLVERR on the read beats is reported to the host
   [ ok ] M6 cmd_resp = 2'b10
-
--- M7 : subordinate sends RLAST early -> cmd_last_err
-  [ ok ] M7 beats delivered = 2
-  [ ok ] M7 cmd_last_err set = 0x00000001
 
 -- M8 : 16-beat write with no stalls, one beat per clock
   16 beats + response took 220 ns
@@ -73,7 +65,7 @@
   [ ok ] M8 beat = 0x8896000e
   [ ok ] M8 beat = 0x8897000f
 
-==== Level 2 result : 52 checks, 0 failure(s) ====
+==== Level 2 result : 46 checks, 0 failure(s) ====
 TEST PASSED
 
-E:\FPGA_Project\sim\tb_axi4_master.v:856: $finish called at 1456000 (1ps)
+E:\FPGA_Project\sim\tb_axi4_master.v:818: $finish called at 1396000 (1ps)

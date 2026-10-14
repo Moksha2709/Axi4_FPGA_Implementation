@@ -138,7 +138,7 @@ def title(slide, label, dark=False):
 
 def footer(slide, dark=False):
     c = ON_DARK_M if dark else MUTED
-    text(slide, MX, 7.0, 8, 0.3, "AXI4 manager, subordinate and registered channels",
+    text(slide, MX, 7.0, 8, 0.3, "AXI4 manager and subordinate in Verilog",
          size=11, color=c, name="Footer")
     text(slide, W - MX - 1.0, 7.0, 1.0, 0.3, str(page_no[0]), size=11, color=c,
          align=PP_ALIGN.RIGHT, name="Page number")
@@ -170,14 +170,14 @@ def bullets_card(slide, x, y, w, h, heading, items, fill=WHITE, head_color=INK, 
 # =========================================================================
 s = new_slide(NAVY, "Open with the one-sentence summary: we built both ends of an AXI4 connection in "
               "Verilog. A manager that issues bursts, and a subordinate that is a 4 KiB memory. They are "
-              "connected through five registered channels. Everything shown today comes from the "
+              "wired directly together over the five AXI channels. Everything shown today comes from the "
               "simulation in the project folder, so every number can be reproduced live. The five amber "
               "pills are the five AXI channels; we come back to each one.")
 text(s, 0.9, 1.5, 11, 0.4, "VIVA DEMONSTRATION", size=18, bold=True, color=AMBER, name="Eyebrow")
 text(s, 0.9, 2.05, 11.2, 2.4, "AXI4 manager and subordinate in Verilog", size=60, bold=True,
      color=ON_DARK, font=HEAD, name="Title")
 text(s, 0.9, 4.25, 10.5, 1.0,
-     "Burst transfers over five registered channels, with 251 checks passing in simulation.",
+     "Burst transfers over the five AXI4 channels, with 156 checks passing in simulation.",
      size=24, color=ON_DARK_M)
 px = 0.9
 for lab, w_ in (("AW", 0.9), ("W", 0.8), ("B", 0.8), ("AR", 0.9), ("R", 0.8)):
@@ -189,25 +189,25 @@ text(s, 0.9, 6.7, 11, 0.4, "[Your name]   ·   [Course and institution]   ·   [
 # =========================================================================
 # 2  What we built
 # =========================================================================
-s = new_slide(LIGHT, "Three pieces. The manager is the active side: your logic gives it a simple "
+s = new_slide(LIGHT, "Three files. The manager is the active side: your logic gives it a simple "
               "request and it runs the whole AXI conversation. The subordinate is a small memory that "
-              "understands that conversation. The flip-flop stages sit between them. Stress that this is "
-              "full AXI4: bursts, IDs and the LAST signals, not the single-word AXI4-Lite.")
+              "understands that conversation. The top level only wires the two together. Stress that this "
+              "is full AXI4: bursts, IDs and the LAST signals, not the single-word AXI4-Lite.")
 title(s, "What we built")
-text(s, MX, 1.4, 11.9, 0.5, "Both ends of an AXI4 connection, and the registers between them.",
+text(s, MX, 1.4, 11.9, 0.5, "Both ends of an AXI4 connection, wired together.",
      size=20, color=MUTED)
 cards = [
     (BLUE_F, BLUE, "Manager", "axi4_master.v",
      "Takes a simple burst request from your logic and runs the full AXI4 exchange: address, data beats, response."),
     (VIOLET_F, VIOLET, "Subordinate", "axi4_slave.v",
-     "A 4 KiB memory. Accepts bursts of 1 to 256 beats in FIXED, INCR or WRAP order, and answers OKAY or an error."),
-    (AMBER_F, AMBER_D, "Flip-flop stages", "axi4_skid_buffer.v",
-     "One registered stage per channel, so nothing crosses between the two modules combinationally."),
+     "A 4 KiB memory. Accepts bursts of 1 to 256 beats in FIXED, INCR or WRAP order and answers OKAY."),
+    (GREEN_F, GREEN, "Top level", "axi4_top.v",
+     "Wires the manager directly to the subordinate over the five AXI channels. Nothing sits between them."),
 ]
 cx = MX
-for fill, accent, head, fname, body in cards:
+for fill, accent, head_, fname, body in cards:
     box(s, cx, 2.25, 3.82, 3.9, fill=fill)
-    text(s, cx + 0.35, 2.55, 3.1, 0.5, head, size=26, bold=True, font=HEAD)
+    text(s, cx + 0.35, 2.55, 3.1, 0.5, head_, size=26, bold=True, font=HEAD)
     text(s, cx + 0.35, 3.15, 3.1, 0.35, fname, size=14, color=MUTED, font=MONO)
     text(s, cx + 0.35, 3.75, 3.1, 2.2, body, size=17)
     cx += 3.82 + 0.22
@@ -345,62 +345,50 @@ footer(s)
 # 6  System block diagram
 # =========================================================================
 s = new_slide(LIGHT, "Walk left to right. Your logic uses a command port and two data streams. The "
-              "manager turns those into the five AXI channels. Every channel passes through its own "
-              "amber flip-flop stage. AW, W and AR carry requests forward; B and R carry responses back. "
-              "Inside the subordinate there is a write engine, a read engine and a 4 KiB memory. The "
-              "three notes at the bottom are the three design decisions we will justify.")
+              "manager turns those into the five AXI channels, shown with their real signal names. The "
+              "channels run straight into the subordinate, which has a write engine, a read engine and a "
+              "4 KiB memory. The three cards at the bottom are the design points we will justify.")
 title(s, "System architecture")
-from PIL import Image  # crop the margins and the sticky notes so the drawing can be larger
-_src = Image.open(os.path.join(HERE, "axi4_block_diagram.png"))
-_crop = os.path.join(HERE, "axi4_block_diagram_crop.png")
-_src.crop((30, 105, 1970, 895)).save(_crop)
-picture(s, _crop, 0.9, 1.4, w=11.5,
-        alt="Block diagram: your logic, axi4_master, five flip-flop stages, axi4_slave with write engine, read engine and 4 KiB memory.")
-notes3 = [("Latched once at start", "The bus payload never moves mid-burst."),
-          ("Every wire is a flip-flop", "+2 cycles, same throughput."),
-          ("Errors still drain the burst", "So the manager never hangs.")]
-nx = MX
-for hd, bd in notes3:
-    box(s, nx, 6.1, 3.82, 0.78, fill=WHITE)
-    text(s, nx + 0.2, 6.15, 3.45, 0.3, hd, size=14, bold=True)
-    text(s, nx + 0.2, 6.47, 3.45, 0.3, bd, size=13, color=MUTED)
-    nx += 3.82 + 0.22
+picture(s, os.path.join(HERE, "axi4_block_diagram.png"), 0.9, 1.45, w=11.5,
+        alt="Block diagram: your logic, axi4_master, five AXI4 channels with signal names, axi4_slave with write engine, read engine and 4 KiB memory.")
+text(s, MX, 6.65, 11.9, 0.3,
+     "The master and slave are wired directly. The burst description is copied into registers once, at the start.",
+     size=14, color=MUTED, italic=True)
 footer(s)
 
 # =========================================================================
 # 7  Host interface
 # =========================================================================
-s = new_slide(LIGHT, "The host side of the manager is deliberately simple. You pulse a start signal "
+s = new_slide(LIGHT, "The host side of the manager is deliberately small. You pulse a start signal "
               "with a burst description; for a write you push beats into the write stream, for a read "
-              "you pull them from the read stream. cmd_done is a one-cycle pulse when the burst "
-              "finishes. Two rules: a start pulse is ignored while cmd_busy is high, and if both starts "
-              "are high at once the write wins. The manager copies the description into registers, so "
-              "you may change cmd_addr straight after the pulse.")
+              "you take them from the read stream. cmd_done is a one-cycle pulse when the burst finishes "
+              "and cmd_resp carries the response. A start is taken only when the manager is idle, and "
+              "if both starts are high the write wins. The manager copies the description into "
+              "registers, so you may change cmd_addr straight after the pulse.")
 title(s, "Host interface of the manager")
 quad = [
     (BLUE_F, "Command port", "you drive",
      ["cmd_start_write", "cmd_start_read", "cmd_id[3:0]", "cmd_addr[31:0]", "cmd_len[7:0]",
       "cmd_size[2:0]", "cmd_burst[1:0]"]),
     (GREEN_F, "Status", "you read",
-     ["cmd_busy", "cmd_done  (1-cycle pulse)", "cmd_resp[1:0]", "cmd_resp_id[3:0]", "cmd_last_err"]),
+     ["cmd_done  (1-cycle pulse)", "cmd_resp[1:0]"]),
     (AMBER_F, "Write stream", "you push beats",
      ["hw_data[31:0]", "hw_strb[3:0]", "hw_valid", "hw_ready"]),
-    (VIOLET_F, "Read stream", "you pull beats",
-     ["hr_data[31:0]", "hr_resp[1:0]", "hr_last", "hr_valid", "hr_ready"]),
+    (VIOLET_F, "Read stream", "you take beats",
+     ["hr_data[31:0]", "hr_valid", "hr_ready"]),
 ]
 pos = [(MX, 1.55), (MX + 6.05, 1.55), (MX, 4.0), (MX + 6.05, 4.0)]
-hts = [2.3, 2.3, 2.3, 2.3]
 for (fill, hd, sub, items), (x, y) in zip(quad, pos):
     box(s, x, y, 5.85, 2.3, fill=fill)
     text(s, x + 0.3, y + 0.2, 3.0, 0.4, hd, size=20, bold=True, font=HEAD)
     text(s, x + 3.2, y + 0.26, 2.4, 0.35, sub, size=13, color=MUTED, align=PP_ALIGN.RIGHT)
-    half = (len(items) + 1) // 2
-    text(s, x + 0.3, y + 0.75, 2.7, 1.5, [{"text": t, "font": MONO, "size": 13, "after": 3}
+    half = (len(items) + 1) // 2 if len(items) > 3 else len(items)
+    text(s, x + 0.3, y + 0.75, 2.9, 1.5, [{"text": t, "font": MONO, "size": 13, "after": 3}
                                           for t in items[:half]])
-    text(s, x + 3.0, y + 0.75, 2.7, 1.5, [{"text": t, "font": MONO, "size": 13, "after": 3}
+    text(s, x + 3.2, y + 0.75, 2.5, 1.5, [{"text": t, "font": MONO, "size": 13, "after": 3}
                                           for t in items[half:]])
 text(s, MX, 6.45, 11.9, 0.4,
-     "A start is ignored while cmd_busy is high. If both starts arrive together, the write wins.",
+     "A start is taken only when the manager is idle. If both starts arrive together, the write wins.",
      size=15, color=MUTED, italic=True)
 footer(s)
 
@@ -419,7 +407,7 @@ states = [
     ("WRITE", "Sends the address and streams the beats together. Counts beats, raises WLAST on the last."),
     ("B", "Waits for the one response for the whole burst. Pulses cmd_done."),
     ("RADDR", "Sends the read address and waits for the subordinate to take it."),
-    ("RDATA", "Passes beats to the host until RLAST. Flags a RLAST on the wrong beat."),
+    ("RDATA", "Passes each beat to the host and finishes when RLAST arrives."),
 ]
 bw, gap = 2.18, 0.25
 x = MX
@@ -450,10 +438,9 @@ s = new_slide(LIGHT, "The subordinate has two independent state machines because
               "use different channels. The write engine takes the address first and only then raises "
               "WREADY, applies WSTRB byte by byte, steps the address per beat, and sends one B response. "
               "The read engine fetches the first word on the address handshake and each following word "
-              "on the previous beat's handshake, which is why beats come out one per clock. Errors: "
-              "DECERR for an address outside the 4 KiB, SLVERR for a malformed request. Importantly, a "
-              "failing write is still fully accepted and a failing read still returns every beat, so "
-              "the manager never hangs.")
+              "on the previous beat's handshake, which is why beats come out one per clock. Every "
+              "response is OKAY: this subordinate does no request checking, so an address beyond "
+              "the 4 KiB simply wraps inside the memory.")
 title(s, "The subordinate")
 bullets_card(s, MX, 1.55, 3.82, 5.1, "Write engine", [
     "IDLE, DATA, RESP",
@@ -470,79 +457,85 @@ bullets_card(s, MX + 4.04, 1.55, 3.82, 5.1, "Read engine", [
     "RLAST on the final beat",
 ], fill=GREEN_F, size=18)
 box(s, MX + 8.08, 1.55, 3.82, 5.1, fill=WHITE)
-text(s, MX + 8.38, 1.8, 3.2, 0.45, "Errors", size=19, bold=True, font=HEAD)
+text(s, MX + 8.38, 1.8, 3.2, 0.45, "Responses", size=19, bold=True, font=HEAD)
 text(s, MX + 8.38, 2.4, 3.25, 4.1, [
-    {"text": "DECERR", "font": MONO, "bold": True, "size": 15, "color": AMBER_D},
-    {"text": "Address outside the 4 KiB region.", "after": 10},
-    {"text": "SLVERR", "font": MONO, "bold": True, "size": 15, "color": AMBER_D},
-    {"text": "Reserved burst code, beat wider than the bus, bad WRAP length, or WLAST on the wrong beat.",
-     "after": 10},
-    {"text": "A failing write is still fully accepted. A failing read still returns every beat. "
-             "The manager never hangs.", "italic": True, "color": MUTED},
+    {"text": "OKAY on every transfer", "font": MONO, "bold": True, "size": 15, "color": AMBER_D,
+     "after": 4},
+    {"text": "BRESP and RRESP are tied to 00.", "after": 12},
+    {"text": "No request checking", "font": MONO, "bold": True, "size": 15, "color": AMBER_D,
+     "after": 4},
+    {"text": "A write ends on WLAST. A read ends after ARLEN + 1 beats. An address beyond the "
+             "memory wraps inside it.", "after": 0},
 ], size=16)
 footer(s)
 
 # =========================================================================
-# 10  Flip-flop stage
+# 10  End to end
 # =========================================================================
-s = new_slide(LIGHT, "You asked for the modules to communicate only through flip-flops. A single "
-              "flip-flop per wire loses data: the receiver's READY arrives one cycle late, so the sender "
-              "can push a beat the flip-flop has already used. The skid buffer fixes that with a spare "
-              "slot: if the output is stuck, the next beat parks in the slot and in_ready drops at once, "
-              "so a third beat can never arrive. Cost: one clock per stage, so two cycles per transaction "
-              "in total, and throughput stays at one beat per clock.")
-title(s, "The flip-flop stage: a skid buffer")
-picture(s, os.path.join(HERE, "axi4_flipflop_stage.png"), MX, 2.4, w=7.0,
-        alt="Skid buffer: an output register and a spare skid slot with in_ready equal to not skid_valid.")
-box(s, 8.0, 1.6, 4.63, 5.05, fill=WHITE)
-text(s, 8.3, 1.8, 4.0, 0.4, "Why not one flip-flop?", size=19, bold=True, font=HEAD)
-text(s, 8.3, 2.3, 4.05, 1.5,
-     "READY would reach the sender one cycle late, so it could push a beat the stage "
-     "has already used. That beat would be lost.", size=15)
-text(s, 8.3, 3.85, 4.0, 0.4, "What it costs", size=19, bold=True, font=HEAD)
-text(s, 8.3, 4.35, 4.05, 2.2, [
-    {"text": "+2 cycles per transaction, fixed", "after": 6},
-    {"text": "Still 1 beat per clock", "after": 6},
-    {"text": "Every path between the modules is register to register", "after": 0}], size=15)
+s = new_slide(LIGHT, "One request from start to finish: write four words to address 0x10. The host "
+              "pulses the start with cmd_len = 3 and streams four words. The manager copies the "
+              "description, sends the address and the beats and raises WLAST on the fourth. The "
+              "subordinate takes the address first, then writes each word into memory. After WLAST "
+              "it sends one response. The manager takes it and pulses cmd_done. Measured: six busy "
+              "cycles for four beats.")
+title(s, "One write, end to end")
+text(s, MX, 1.4, 11.9, 0.5, "Writing four words to address 0x10.", size=20, color=MUTED)
+steps = [
+    ("1  Host", BLUE_F, "Pulses cmd_start_write with cmd_addr = 0x10 and cmd_len = 3, then streams four words."),
+    ("2  Master", BLUE_F, "Copies the description, sends AW, and sends the four beats on W with WLAST on the fourth."),
+    ("3  Subordinate", VIOLET_F, "Takes the address first, then raises WREADY and writes each word into memory."),
+    ("4  Response", VIOLET_F, "After WLAST it sends one B response: OKAY, with BID copied from AWID."),
+    ("5  Done", GREEN_F, "The master takes the response and pulses cmd_done. The burst kept it busy for 6 cycles."),
+]
+bw, gap = 2.18, 0.25
+x = MX
+for i, (hd, fill, d) in enumerate(steps):
+    box(s, x, 2.25, bw, 3.7, fill=fill)
+    text(s, x + 0.2, 2.45, bw - 0.4, 0.9, hd, size=20, bold=True, font=HEAD)
+    text(s, x + 0.2, 3.45, bw - 0.4, 2.4, d, size=16)
+    if i < 4:
+        arrow(s, x + bw + 0.02, 4.1, x + bw + gap - 0.02, 4.1, color=MUTED, width=2)
+    x += bw + gap
+text(s, MX, 6.3, 11.9, 0.5, "The waveforms on the next two slides show the same write and the matching read.",
+     size=16, color=MUTED, italic=True)
 footer(s)
 
 # =========================================================================
 # 11  Write waveform
 # =========================================================================
-s = new_slide(LIGHT, "This waveform was recorded from our simulation of the full system with the "
-              "flip-flop stages: a 4-beat write to address 0x10. Cycle 0, the host pulses start. Cycle 1, "
-              "AWVALID and WVALID go up together and handshake straight away at the stage. Cycle 2, the "
-              "address reaches the subordinate, one cycle later: that is the stage. The subordinate "
-              "raises WREADY only after it has the address, so on the manager side WREADY dips for one "
-              "cycle at 3 while the stage absorbs the wait. The four beats then flow, WLAST on the "
-              "fourth, the response arrives at cycle 8 and cmd_done pulses at 9.")
+s = new_slide(LIGHT, "This waveform was recorded from our simulation of the full system: a 4-beat "
+              "write to address 0x10. Cycle 0, the host pulses start. Cycle 1, AWVALID and WVALID go up "
+              "together and the address handshakes straight away; WREADY is still low because the "
+              "subordinate takes the address first. From cycle 2 the four beats flow one per clock, "
+              "WLAST rides on the fourth at cycle 5, the response handshakes at cycle 6 and cmd_done "
+              "pulses at 7. The master was busy for 6 cycles.")
 title(s, "A 4-beat write, recorded from the simulation")
-picture(s, os.path.join(HERE, "axi4_waveform_write.png"), MX, 1.45, h=5.3,
-        alt="Waveform of a 4-beat write through the flip-flop stages.")
+picture(s, os.path.join(HERE, "axi4_waveform_write.png"), MX, 1.5, w=8.4,
+        alt="Waveform of a 4-beat write on the bare design.")
 text(s, 9.3, 1.55, 3.35, 5.2, [
     {"text": "How to read it", "size": 19, "bold": True, "font": HEAD, "after": 8},
     {"text": "Amber dots are handshakes.", "after": 8},
-    {"text": "Slave side is one cycle after master side: that is the flip-flop stage.", "after": 8},
-    {"text": "Master WREADY dips at cycle 3 while the slave waits for the address.", "after": 8},
-    {"text": "Four beats, WLAST on the fourth, busy for 8 cycles.", "after": 0}], size=15)
+    {"text": "WREADY stays low in cycle 1: the subordinate takes the address first.", "after": 8},
+    {"text": "Four beats at cycles 2 to 5, WLAST on the fourth.", "after": 8},
+    {"text": "One response at cycle 6, cmd_done at 7. Busy for 6 cycles.", "after": 0}], size=15)
 footer(s)
 
 # =========================================================================
 # 12  Read waveform
 # =========================================================================
-s = new_slide(LIGHT, "Same address read back. One address goes out at cycle 2 and reaches the "
-              "subordinate at 3. The manager raises RREADY as soon as the address is accepted. Data "
-              "starts arriving at cycle 5 and the four beats come back to back, one per clock, with "
-              "RLAST on the last at cycle 8; cmd_done at 9. After the first beat there are no gaps: that "
-              "is the point of fetching the next word on each read handshake.")
+s = new_slide(LIGHT, "Same address read back. One address goes out and is accepted at cycle 1. The "
+              "manager raises RREADY as soon as the address is accepted. The four beats come back to "
+              "back at cycles 2 to 5, one per clock, with RLAST on the fourth. cmd_done pulses at 6. "
+              "After the address there are no gaps: that is the point of fetching the next word on "
+              "each read handshake.")
 title(s, "A 4-beat read, recorded from the simulation")
 picture(s, os.path.join(HERE, "axi4_waveform_read.png"), MX, 2.0, w=8.3,
-        alt="Waveform of a 4-beat read through the flip-flop stages.")
+        alt="Waveform of a 4-beat read on the bare design.")
 text(s, 9.3, 2.0, 3.35, 4.0, [
     {"text": "How to read it", "size": 19, "bold": True, "font": HEAD, "after": 8},
-    {"text": "One address, then four beats.", "after": 8},
-    {"text": "Beats arrive at cycles 5, 6, 7 and 8, one per clock, no gaps.", "after": 8},
-    {"text": "RLAST rides on the fourth beat.", "after": 0}], size=15)
+    {"text": "One address at cycle 1.", "after": 8},
+    {"text": "Four beats at cycles 2 to 5, one per clock, no gaps.", "after": 8},
+    {"text": "RLAST rides on the fourth beat. cmd_done at 6. Busy for 5 cycles.", "after": 0}], size=15)
 footer(s)
 
 # =========================================================================
@@ -552,16 +545,16 @@ s = new_slide(LIGHT, "We verified at three levels so that a failure points at on
               "plays the manager against the subordinate alone and forces awkward cases that a real "
               "manager would not produce. Level 2 runs the manager against a mock subordinate whose "
               "delays we control, with always-on monitors that fail the test if VALID drops early or any "
-              "payload bit changes while stalled. Level 3 runs the whole system, once with the flip-flop "
-              "stages and once without, including a reset in the middle of a burst.")
+              "payload bit changes while stalled. Level 3 runs the whole system through the host ports, "
+              "including a reset in the middle of a burst.")
 title(s, "How it was verified")
 lv = [
-    (BLUE_F, "Level 1", "Subordinate alone", "45",
-     "Testbench plays the manager: AW before W, W before AW, response stalls, WRAP, FIXED, byte strobes, bad addresses, ID echo, narrow beats."),
-    (GREEN_F, "Level 2", "Manager and mock subordinate", "52",
+    (BLUE_F, "Level 1", "Subordinate alone", "38",
+     "Testbench plays the manager: AW before W, stalled responses, WRAP, FIXED, INCR, byte strobes, ID echo, narrow 1-byte beats."),
+    (GREEN_F, "Level 2", "Manager and mock subordinate", "46",
      "Programmable delays. Monitors fail the test if VALID drops early or a payload bit changes while stalled."),
-    (VIOLET_F, "Level 3", "Whole system, run twice", "77 × 2",
-     "With and without the flip-flop stages. All burst types, errors, back-pressure, throughput and a mid-burst reset."),
+    (VIOLET_F, "Level 3", "Whole system", "72",
+     "All burst types, byte strobes, host back-pressure, throughput and a reset in the middle of a burst."),
 ]
 cx = MX
 for fill, lvl, nm, n, d in lv:
@@ -573,21 +566,22 @@ for fill, lvl, nm, n, d in lv:
     text(s, cx + 0.3, 4.15, 3.25, 1.7, d, size=14)
     cx += 3.82 + 0.22
 box(s, MX, 6.15, 11.9, 0.62, fill=AMBER_F)
-text(s, MX + 0.3, 6.15, 11.3, 0.62, "Total: 45 + 52 + 77 + 77 = 251 checks, 0 failing.   Run it:  .\\run_tests.ps1",
+text(s, MX + 0.3, 6.15, 11.3, 0.62, "Total: 38 + 46 + 72 = 156 checks, 0 failing.   Run it:  .\\run_tests.ps1",
      size=17, bold=True, anchor=MSO_ANCHOR.MIDDLE)
 footer(s)
 
 # =========================================================================
 # 14  Results
 # =========================================================================
-s = new_slide(LIGHT, "Three numbers to remember. All 251 checks pass. The flip-flop stages add a fixed "
-              "two cycles per transaction, which we measured by running the same stimulus with and "
-              "without them: a 32-beat write took 37 cycles against 35. Thirty-two beats cannot take "
-              "fewer than 32 cycles, so the extra cycles are the whole cost, and it does not grow with "
-              "burst length. Throughput stays at one beat per clock.")
+s = new_slide(LIGHT, "Three numbers to remember. All 156 checks pass. Sustained throughput is one beat "
+              "per clock. A 32-beat write takes 35 cycles and a 32-beat read 34, measured from the "
+              "start pulse to the done pulse. Thirty-two beats cannot take fewer than 32 cycles, so "
+              "the remaining 3 and 2 cycles are the fixed cost of the address and response handshakes. "
+              "That overhead does not grow with burst length: the 8-beat write took 11 cycles, the "
+              "same 3 cycles over.")
 title(s, "Measured results")
-stats = [("251 / 251", "checks passing", GREEN_F), ("+2 cycles", "fixed cost of the stages", AMBER_F),
-         ("1 beat / clock", "sustained throughput", BLUE_F)]
+stats = [("156 / 156", "checks passing", GREEN_F), ("1 beat / clock", "sustained throughput", BLUE_F),
+         ("35 cycles", "a 32-beat write", AMBER_F)]
 cx = MX
 for big, lab, fill in stats:
     box(s, cx, 1.55, 3.82, 2.1, fill=fill)
@@ -596,9 +590,9 @@ for big, lab, fill in stats:
     cx += 3.82 + 0.22
 rows_, cols_ = 3, 4
 tbl = s.shapes.add_table(rows_, cols_, Inches(MX), Inches(4.1), Inches(11.9), Inches(1.7)).table
-data = [["32-beat burst", "With flip-flop stages", "Wired directly", "Difference"],
-        ["Write", "37 cycles", "35 cycles", "+2"],
-        ["Read", "36 cycles", "34 cycles", "+2"]]
+data = [["32-beat burst", "Cycles, start to done", "Beats", "Fixed overhead"],
+        ["Write", "35", "32", "3 cycles"],
+        ["Read", "34", "32", "2 cycles"]]
 for r in range(rows_):
     for c in range(cols_):
         cell = tbl.cell(r, c)
@@ -614,29 +608,27 @@ for r in range(rows_):
         run.font.color.rgb = rgb(ON_DARK if r == 0 else INK)
         cell.vertical_anchor = MSO_ANCHOR.MIDDLE
 text(s, MX, 6.05, 11.9, 0.6,
-     "32 beats cannot take fewer than 32 cycles, so the extra cycles are the entire cost of the stages. "
-     "It does not grow with burst length.", size=15, color=MUTED)
+     "The overhead is the address and response handshakes. It does not grow with burst length.",
+     size=15, color=MUTED)
 footer(s)
 
 # =========================================================================
 # 15  Limits
 # =========================================================================
 s = new_slide(LIGHT, "Say these before you are asked. One burst at a time per direction, so IDs are "
-              "echoed but never used to reorder. No exclusive access. Narrow reads return the whole "
-              "word and the manager picks its lanes. Only the start address is range-checked, which is "
-              "safe for legal bursts because a legal burst cannot cross a 4 KiB boundary. The host "
-              "streams inside the manager are a combinational pass-through with a state gate; the "
-              "flip-flop stages sit immediately after, so the module boundary is clean, but it is not "
-              "true that every manager output is a flip-flop. A reset in mid-burst discards beats still "
-              "in the stages.")
+              "echoed but never used to reorder. Every response is OKAY: there are no error "
+              "responses, and an address beyond the 4 KiB wraps inside the memory. No exclusive "
+              "access. Narrow reads return the whole word and the manager picks its lanes. The host "
+              "streams inside the manager are a combinational pass-through with a state gate. A reset "
+              "in mid-burst leaves the memory as it was, and which beats landed is not defined.")
 title(s, "Limits, stated plainly")
 lims = [
     ("One burst at a time", "Per direction. IDs are echoed but never used to reorder."),
+    ("No error responses", "Every response is OKAY. A bad address wraps inside the 4 KiB."),
     ("No exclusive access", "AxLOCK is 0, EXOKAY never returned. CACHE, PROT and QOS are carried, not used."),
     ("Narrow reads return the word", "The subordinate does not mask other byte lanes. Legal: the manager picks its lanes."),
-    ("Start address is range-checked", "Safe for legal bursts, which cannot cross a 4 KiB boundary."),
-    ("Host streams are not registered", "A state-gated pass-through inside the manager. The stages follow immediately."),
-    ("Reset mid-burst", "Beats still in the stages are discarded. The outcome is undefined, so it is not asserted."),
+    ("Host streams pass straight through", "A state-gated pass-through inside the manager, not registered."),
+    ("Reset mid-burst", "The memory is not cleared by reset. Which beats landed is undefined, so it is not asserted."),
 ]
 for i, (h_, d) in enumerate(lims):
     col, row = i % 2, i // 2
@@ -651,7 +643,7 @@ footer(s)
 # 16  Demo
 # =========================================================================
 s = new_slide(NAVY, "Live demo, about two minutes. Open PowerShell in E:\\FPGA_Project and run "
-              ".\\run_tests.ps1. It compiles and runs four suites. Point at the three result lines and "
+              ".\\run_tests.ps1. It compiles and runs three suites. Point at the three result lines and "
               "the summary. Then run the top suite with -Wave to open the waveform in GTKWave and show "
               "the same shape as the recorded slides: the one-cycle shift from master side to slave "
               "side, and the WREADY dip. If the live run fails for any reason, the slides 11 and 12 "
@@ -664,9 +656,9 @@ text(s, MX + 0.4, 1.85, 6.8, 2.6, [
     {"text": ".\\run_tests.ps1 -Suite top -Wave", "font": MONO, "size": 18, "color": AMBER, "after": 0}])
 text(s, MX + 8.0, 1.6, 3.9, 0.4, "What to point at", size=20, bold=True, color=AMBER, font=HEAD)
 text(s, MX + 8.0, 2.15, 3.9, 3.0, [
-    {"text": "Four suites, each ending TEST PASSED", "after": 10},
-    {"text": "Check counts: 45, 52, 77 and 77", "after": 10},
-    {"text": "In the waveform: slave side lags master side by one cycle", "after": 0}],
+    {"text": "Three suites, each ending TEST PASSED", "after": 10},
+    {"text": "Check counts: 38, 46 and 72", "after": 10},
+    {"text": "In the waveform: WREADY waits for the address", "after": 0}],
      size=16, color=ON_DARK)
 box(s, MX, 5.0, 11.9, 1.5, fill="22304A")
 text(s, MX + 0.4, 5.2, 11.1, 1.2, [
@@ -679,19 +671,19 @@ footer(s, dark=True)
 # 17  Questions
 # =========================================================================
 s = new_slide(LIGHT, "Likely questions with short answers. Why five channels: so address, data and "
-              "response move independently and in both directions. Why not a single flip-flop: READY "
-              "arrives late and a beat is lost; the spare slot catches it. Why does the subordinate use "
-              "WLAST when it knows the length: it cross-checks and reports SLVERR instead of hanging. "
-              "Why latch the command: the bus payload must stay stable until the handshake completes. "
-              "What about a bad address mid-burst: the burst is still drained and DECERR is returned once.")
+              "response move independently and in both directions. How does the subordinate know the "
+              "burst ended: WLAST on writes, a beat count on reads. What about a bad address: this "
+              "subordinate does no checking, the address wraps and the response is OKAY. Why latch the "
+              "command: the bus payload must stay stable until the handshake completes. What limits "
+              "throughput: one beat per clock after a few cycles of address and response overhead.")
 title(s, "Questions we expect")
 qa = [
     ("Why five channels?", "Address, data and response move independently and in both directions, so a slow response never blocks the next address."),
-    ("Why not a single flip-flop per wire?", "READY arrives one cycle late and a beat is lost. The spare slot catches that one beat."),
-    ("Why check WLAST if the length is known?", "It is a cross-check. A mismatch ends the burst safely and returns SLVERR."),
+    ("How does it know a burst ended?", "On writes, from WLAST. On reads, by counting ARLEN + 1 beats."),
+    ("What happens on a bad address?", "Nothing is checked. The address wraps inside the 4 KiB and the response is OKAY."),
     ("Why latch the command?", "The bus payload must not change until its handshake completes. Registers guarantee that."),
-    ("What if the address is bad mid-burst?", "The subordinate still accepts every beat, skips the write, and returns DECERR once."),
-    ("What does the stage cost?", "Two cycles per transaction, fixed. Throughput stays at one beat per clock."),
+    ("Why does WREADY wait for the address?", "The subordinate takes the address first, then the data. The standard allows it."),
+    ("What limits throughput?", "One beat per clock, plus a few cycles of address and response overhead: 35 cycles for 32 beats."),
 ]
 for i, (q, a) in enumerate(qa):
     col, row = i % 2, i // 2
@@ -702,5 +694,6 @@ for i, (q, a) in enumerate(qa):
     text(s, x + 0.3, y + 0.66, 5.3, 0.85, a, size=15, color=MUTED)
 footer(s)
 
+
 prs.save(OUT)
-print("saved", OUT, "slides:", len(prs.slides))
+print('saved', OUT, 'slides:', len(prs.slides))
