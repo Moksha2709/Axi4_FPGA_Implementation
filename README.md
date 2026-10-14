@@ -1,90 +1,108 @@
-# AMBA AXI4 manager and subordinate in Verilog
+# AXI4: five channels, a master and a memory
 
-A plain AXI4 implementation: a burst-capable manager and a burst-capable
-memory subordinate, wired directly together. Protocol only, no extras.
+The smallest burst-capable AXI4 design that is still a real AXI4: a master that
+starts the transfers itself, a memory that answers them, and a D flip-flop
+stage at both ends of every channel.
 
-All three test suites pass: **156 checks, 0 failures** (simulated with
-Icarus Verilog).
+Both test runs pass: **33 + 13 = 46 checks, 0 failing** (Icarus Verilog).
 
 ## Files
 
 ```
 rtl/
-  axi4_master.v   AXI4 manager with a minimal host interface
-  axi4_slave.v    AXI4 subordinate: a 4 KiB burst-capable memory
-  axi4_top.v      manager wired directly to subordinate
+  axi4_master.v     the master: data in D flip-flop registers, starts by itself
+  axi4_reg_stage.v  one D flip-flop stage (holds one beat)
+  axi4_slave.v      the slave: a 4 KiB memory
+  axi4_top.v        master, ten stages, slave
 sim/
-  tb_axi4_slave.v    Level 1: subordinate alone                (38 checks)
-  tb_axi4_master.v   Level 2: manager against a mock subordinate (46 checks)
-  tb_axi4_top.v      Level 3: whole system                     (72 checks)
+  tb_axi4_slave.v   the slave on its own, driven channel by channel (33 checks)
+  tb_axi4_top.v     the whole system, the master runs by itself   (13 checks)
 results/            logs and waveforms from the passing runs
-run_tests.ps1       Windows test runner
-Makefile            same targets for GNU make
+docs/               block diagram, waveforms, presentation
+run_tests.ps1       runs both testbenches (Windows)
+Makefile            same thing for GNU make
 ```
-
-## Run
 
 ```powershell
-.\run_tests.ps1                  # all three suites and a summary
-.\run_tests.ps1 -Suite slave     # slave | master | top
-.\run_tests.ps1 -Suite top -Wave # then open the waveform in GTKWave
+.\run_tests.ps1                  # both
+.\run_tests.ps1 -Suite top -Wave # then open the waveform
 ```
 
-## What is implemented
+## How it fits together
 
-**All five AXI4 channels:** AW, W, B, AR, R, each with VALID and READY.
+```
+ master  --AW,W,AR-->  [stage]  -->  [stage]  -->  slave
+ (D flip-flop          master side   slave side     (4 KiB memory)
+  registers)  <--B,R-- [stage]  <--  [stage]  <--
+```
 
-**Bursts:** 1 to 256 beats (`AxLEN` = beats minus 1), with `AxSIZE`,
-`AxBURST` (FIXED, INCR, WRAP), `WLAST` and `RLAST`.
+There is no host interface. The master holds an address and four words in D
+flip-flop registers and, after reset, runs by itself:
 
-**IDs:** `BID` echoes `AWID`, and `RID` echoes `ARID`.
+1. write the four words to `0x10` (one burst of four beats), wait for the response
+2. read the four words back (one burst), compare with what it wrote
 
-**Byte strobes:** `WSTRB` selects which bytes of a word are written.
+It has two outputs: `done` (the sequence has finished) and `pass` (what came
+back equals what was written).
 
-**Attribute signals:** `AxLOCK`, `AxCACHE`, `AxPROT` and `AxQOS` are present
-on the ports. The manager ties them to zero and the subordinate ignores them.
+## The five channels
 
-### The subordinate
+Each channel is a payload plus `VALID` (sender) and `READY` (receiver). A
+transfer happens in the cycle where both are high.
 
-* Two independent state machines, one for writes and one for reads.
-* Write: accept the address, then accept beats until `WLAST`, then send one
-  `B` response.
-* Read: the first beat is fetched on the `AR` handshake and each following
-  beat on the previous beat's `R` handshake, so beats stream one per clock.
-* Every response is OKAY. There is no address or request checking, so an
-  address beyond the memory simply wraps inside it.
+| Channel | Direction | Signals |
+|---|---|---|
+| AW write address | master to slave | `AWID`, `AWADDR`, `AWLEN`, `AWVALID`, `AWREADY` |
+| W write data | master to slave | `WDATA`, `WSTRB`, `WLAST`, `WVALID`, `WREADY` |
+| B write response | slave to master | `BID`, `BRESP`, `BVALID`, `BREADY` |
+| AR read address | master to slave | `ARID`, `ARADDR`, `ARLEN`, `ARVALID`, `ARREADY` |
+| R read data | slave to master | `RID`, `RDATA`, `RRESP`, `RLAST`, `RVALID`, `RREADY` |
 
-### The manager
+`AxLEN` is beats minus one (so up to 256 beats). `WSTRB` has one bit per byte.
+`WLAST` and `RLAST` mark the final beat. `BID` repeats `AWID`, `RID` repeats
+`ARID`. `BRESP` and `RRESP` are always `00` (OKAY).
 
-Host side:
+## The slave
 
-| Signal | Meaning |
-|---|---|
-| `cmd_start_write`, `cmd_start_read` | begin a burst (only taken when idle; write wins if both are high) |
-| `cmd_id`, `cmd_addr`, `cmd_len`, `cmd_size`, `cmd_burst` | the burst description, copied into registers at the start |
-| `hw_data`, `hw_strb`, `hw_valid`, `hw_ready` | write data in, a plain valid/ready stream |
-| `hr_data`, `hr_valid`, `hr_ready` | read data out, a plain valid/ready stream |
-| `cmd_done` | one-cycle pulse when the burst has finished |
-| `cmd_resp` | `BRESP` for a write, `RRESP` of the last beat for a read |
+* **Write:** take the address, then take beats until `WLAST`, writing each
+  word (only the bytes selected by `WSTRB`) and adding 4 to the address; then
+  send one response.
+* **Read:** take the address, send `ARLEN + 1` beats, adding 4 each time, and
+  mark the last with `RLAST`.
+* Reads and writes are separate state machines.
 
-States: IDLE, WRITE (AW and W together), B, RADDR, RDATA. The manager
-generates `WLAST` from its own beat counter and ends a read on `RLAST`.
+## The D flip-flop stage
 
-## What is deliberately not here
+A stage holds one beat in flip-flops. While it is full it tells the sender
+"wait" (`in_ready = 0`). When the next side takes the beat, it is empty again.
 
-Multiple outstanding transactions and ID reordering, exclusive access
-(`EXOKAY`), error responses, any behaviour for `AxCACHE`/`AxPROT`/`AxQOS`,
-and any protocol checking inside the RTL.
+`in_ready` comes straight from a flip-flop, so a late `READY` can never lose a
+beat or send one twice. A bare flip-flop on `VALID`/`READY` would not be safe
+for that reason. The cost is that a beat sits in the stage for a clock, so
+**one beat moves every two clocks**. The whole sequence (write, response,
+read, done) takes 27 clock cycles.
 
-## Known properties
+## What is tested
 
-* Master and subordinate are connected directly. The manager's host data
-  streams pass straight through to the W and R channels with only a state
-  gate, so those are combinational host-to-bus paths.
-* One burst per direction at a time. The IDs are echoed but never used to
-  reorder anything.
-* Reset is active low and asynchronous. It clears all state machines and
-  handshake registers; the memory contents are not cleared.
-* A 32-beat burst takes 35 cycles (write) and 34 cycles (read), measured in
-  `tb_axi4_top.v`. That is one beat per clock plus a few cycles of fixed
-  address and response overhead.
+* **Slave alone (33 checks):** single and multi-beat bursts, address before
+  data and data before address, held-off responses and read data, byte
+  strobes, ID echo, the longest burst (256 beats), reset in the middle of a
+  burst.
+* **Whole system (13 checks):** the master finishes and passes, the four
+  words are in the slave's memory, every response is OKAY with the right ID,
+  `VALID` and the payload hold steady until `READY` (AW, W, AR), and a reset
+  in the middle of the sequence is followed by a clean re-run.
+
+## Not included
+
+Burst types other than counting up (no FIXED, no WRAP), narrow beats, the
+`AxLOCK`/`AxCACHE`/`AxPROT`/`AxQOS` signals, error responses, several
+transactions at once, a host interface.
+
+## Notes
+
+* The master's data is fixed in its registers. To send something else, change
+  the reset values in `axi4_master.v`.
+* One burst at a time. An address beyond the 4 KiB wraps inside it.
+* Reset is active low and asynchronous. It clears the state machines and the
+  stages; the memory contents are not cleared.

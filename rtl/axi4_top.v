@@ -1,202 +1,167 @@
 //=============================================================================
-// axi4_top.v
+// axi4_top.v  --  master, a D flip-flop stage at each end, and the slave
 //
-// One AXI4 manager wired directly to one AXI4 subordinate.
+//   master --AW,W,AR--> [stage: master side] --> [stage: slave side] --> slave
+//   master <--B,R------ [stage: master side] <-- [stage: slave side] <-- slave
+//
+// Every one of the five channels passes through two axi4_reg_stage blocks.
+// Nothing else connects the master and the slave.
+//
+// What each stage carries (packed as one block):
+//   AW : {AWID[3:0], AWADDR[31:0], AWLEN[7:0]}              44 bits
+//   W  : {WDATA[31:0], WSTRB[3:0], WLAST}                   37 bits
+//   B  : {BID[3:0], BRESP[1:0]}                              6 bits
+//   AR : {ARID[3:0], ARADDR[31:0], ARLEN[7:0]}              44 bits
+//   R  : {RID[3:0], RDATA[31:0], RRESP[1:0], RLAST}         39 bits
 //=============================================================================
 
 `timescale 1ns / 1ps
 `default_nettype none
 
-module axi4_top #(
-    parameter ID_WIDTH      = 4,
-    parameter ADDR_WIDTH    = 32,
-    parameter DATA_WIDTH    = 32,
-    parameter MEM_ADDR_BITS = 12
-) (
-    input  wire                      ACLK,
-    input  wire                      ARESETn,
-
-    // Host: command
-    input  wire                      cmd_start_write,
-    input  wire                      cmd_start_read,
-    input  wire [ID_WIDTH-1:0]       cmd_id,
-    input  wire [ADDR_WIDTH-1:0]     cmd_addr,
-    input  wire [7:0]                cmd_len,
-    input  wire [2:0]                cmd_size,
-    input  wire [1:0]                cmd_burst,
-    output wire                      cmd_done,
-    output wire [1:0]                cmd_resp,
-
-    // Host: write data in
-    input  wire [DATA_WIDTH-1:0]     hw_data,
-    input  wire [(DATA_WIDTH/8)-1:0] hw_strb,
-    input  wire                      hw_valid,
-    output wire                      hw_ready,
-
-    // Host: read data out
-    output wire [DATA_WIDTH-1:0]     hr_data,
-    output wire                      hr_valid,
-    input  wire                      hr_ready
+module axi4_top (
+    input  wire clk,
+    input  wire resetn,
+    output wire done,        // the master has finished its write and read
+    output wire pass         // the data read back matched the data written
 );
 
-    localparam STRB_WIDTH = DATA_WIDTH/8;
+    //-------------------------------------------------------------------------
+    // Master side of each channel (m_*), and slave side (s_*)
+    //-------------------------------------------------------------------------
+    // wires at the master
+    wire [3:0]  m_awid;   wire [31:0] m_awaddr;  wire [7:0] m_awlen;
+    wire        m_awvalid, m_awready;
+    wire [31:0] m_wdata;  wire [3:0]  m_wstrb;   wire m_wlast;
+    wire        m_wvalid, m_wready;
+    wire [3:0]  m_bid;    wire [1:0]  m_bresp;
+    wire        m_bvalid, m_bready;
+    wire [3:0]  m_arid;   wire [31:0] m_araddr;  wire [7:0] m_arlen;
+    wire        m_arvalid, m_arready;
+    wire [3:0]  m_rid;    wire [31:0] m_rdata;   wire [1:0] m_rresp;
+    wire        m_rlast, m_rvalid, m_rready;
 
-    wire [ID_WIDTH-1:0]   awid;
-    wire [ADDR_WIDTH-1:0] awaddr;
-    wire [7:0]            awlen;
-    wire [2:0]            awsize;
-    wire [1:0]            awburst;
-    wire                  awlock;
-    wire [3:0]            awcache;
-    wire [2:0]            awprot;
-    wire [3:0]            awqos;
-    wire                  awvalid, awready;
+    // wires at the slave
+    wire [43:0] aw_s_data;  wire aw_s_valid, aw_s_ready;
+    wire [36:0] w_s_data;   wire w_s_valid,  w_s_ready;
+    wire [43:0] ar_s_data;  wire ar_s_valid, ar_s_ready;
+    wire [3:0]  s_bid, s_rid;
+    wire [1:0]  s_bresp, s_rresp;
+    wire [31:0] s_rdata;
+    wire        s_rlast, s_bvalid, s_bready, s_rvalid, s_rready;
 
-    wire [DATA_WIDTH-1:0] wdata;
-    wire [STRB_WIDTH-1:0] wstrb;
-    wire                  wlast, wvalid, wready;
+    // wires between the two stages of a channel
+    wire [43:0] aw_x_data;  wire aw_x_valid, aw_x_ready;
+    wire [36:0] w_x_data;   wire w_x_valid,  w_x_ready;
+    wire [43:0] ar_x_data;  wire ar_x_valid, ar_x_ready;
+    wire [5:0]  b_x_data;   wire b_x_valid,  b_x_ready;
+    wire [38:0] r_x_data;   wire r_x_valid,  r_x_ready;
 
-    wire [ID_WIDTH-1:0]   bid;
-    wire [1:0]            bresp;
-    wire                  bvalid, bready;
-
-    wire [ID_WIDTH-1:0]   arid;
-    wire [ADDR_WIDTH-1:0] araddr;
-    wire [7:0]            arlen;
-    wire [2:0]            arsize;
-    wire [1:0]            arburst;
-    wire                  arlock;
-    wire [3:0]            arcache;
-    wire [2:0]            arprot;
-    wire [3:0]            arqos;
-    wire                  arvalid, arready;
-
-    wire [ID_WIDTH-1:0]   rid;
-    wire [DATA_WIDTH-1:0] rdata;
-    wire [1:0]            rresp;
-    wire                  rlast, rvalid, rready;
-
-    axi4_master #(
-        .ID_WIDTH   (ID_WIDTH),
-        .ADDR_WIDTH (ADDR_WIDTH),
-        .DATA_WIDTH (DATA_WIDTH)
-    ) u_master (
-        .M_AXI_ACLK      (ACLK),
-        .M_AXI_ARESETN   (ARESETn),
-
-        .cmd_start_write (cmd_start_write),
-        .cmd_start_read  (cmd_start_read),
-        .cmd_id          (cmd_id),
-        .cmd_addr        (cmd_addr),
-        .cmd_len         (cmd_len),
-        .cmd_size        (cmd_size),
-        .cmd_burst       (cmd_burst),
-        .cmd_done        (cmd_done),
-        .cmd_resp        (cmd_resp),
-
-        .hw_data         (hw_data),
-        .hw_strb         (hw_strb),
-        .hw_valid        (hw_valid),
-        .hw_ready        (hw_ready),
-
-        .hr_data         (hr_data),
-        .hr_valid        (hr_valid),
-        .hr_ready        (hr_ready),
-
-        .M_AXI_AWID      (awid),
-        .M_AXI_AWADDR    (awaddr),
-        .M_AXI_AWLEN     (awlen),
-        .M_AXI_AWSIZE    (awsize),
-        .M_AXI_AWBURST   (awburst),
-        .M_AXI_AWLOCK    (awlock),
-        .M_AXI_AWCACHE   (awcache),
-        .M_AXI_AWPROT    (awprot),
-        .M_AXI_AWQOS     (awqos),
-        .M_AXI_AWVALID   (awvalid),
-        .M_AXI_AWREADY   (awready),
-
-        .M_AXI_WDATA     (wdata),
-        .M_AXI_WSTRB     (wstrb),
-        .M_AXI_WLAST     (wlast),
-        .M_AXI_WVALID    (wvalid),
-        .M_AXI_WREADY    (wready),
-
-        .M_AXI_BID       (bid),
-        .M_AXI_BRESP     (bresp),
-        .M_AXI_BVALID    (bvalid),
-        .M_AXI_BREADY    (bready),
-
-        .M_AXI_ARID      (arid),
-        .M_AXI_ARADDR    (araddr),
-        .M_AXI_ARLEN     (arlen),
-        .M_AXI_ARSIZE    (arsize),
-        .M_AXI_ARBURST   (arburst),
-        .M_AXI_ARLOCK    (arlock),
-        .M_AXI_ARCACHE   (arcache),
-        .M_AXI_ARPROT    (arprot),
-        .M_AXI_ARQOS     (arqos),
-        .M_AXI_ARVALID   (arvalid),
-        .M_AXI_ARREADY   (arready),
-
-        .M_AXI_RID       (rid),
-        .M_AXI_RDATA     (rdata),
-        .M_AXI_RRESP     (rresp),
-        .M_AXI_RLAST     (rlast),
-        .M_AXI_RVALID    (rvalid),
-        .M_AXI_RREADY    (rready)
+    //-------------------------------------------------------------------------
+    // The master and the slave
+    //-------------------------------------------------------------------------
+    axi4_master u_master (
+        .clk (clk), .resetn (resetn),
+        .M_AXI_AWID (m_awid), .M_AXI_AWADDR (m_awaddr), .M_AXI_AWLEN (m_awlen),
+        .M_AXI_AWVALID (m_awvalid), .M_AXI_AWREADY (m_awready),
+        .M_AXI_WDATA (m_wdata), .M_AXI_WSTRB (m_wstrb), .M_AXI_WLAST (m_wlast),
+        .M_AXI_WVALID (m_wvalid), .M_AXI_WREADY (m_wready),
+        .M_AXI_BID (m_bid), .M_AXI_BRESP (m_bresp),
+        .M_AXI_BVALID (m_bvalid), .M_AXI_BREADY (m_bready),
+        .M_AXI_ARID (m_arid), .M_AXI_ARADDR (m_araddr), .M_AXI_ARLEN (m_arlen),
+        .M_AXI_ARVALID (m_arvalid), .M_AXI_ARREADY (m_arready),
+        .M_AXI_RID (m_rid), .M_AXI_RDATA (m_rdata), .M_AXI_RRESP (m_rresp),
+        .M_AXI_RLAST (m_rlast), .M_AXI_RVALID (m_rvalid), .M_AXI_RREADY (m_rready),
+        .done (done), .pass (pass)
     );
 
-    axi4_slave #(
-        .ID_WIDTH      (ID_WIDTH),
-        .ADDR_WIDTH    (ADDR_WIDTH),
-        .DATA_WIDTH    (DATA_WIDTH),
-        .MEM_ADDR_BITS (MEM_ADDR_BITS)
-    ) u_slave (
-        .S_AXI_ACLK      (ACLK),
-        .S_AXI_ARESETN   (ARESETn),
-
-        .S_AXI_AWID      (awid),
-        .S_AXI_AWADDR    (awaddr),
-        .S_AXI_AWLEN     (awlen),
-        .S_AXI_AWSIZE    (awsize),
-        .S_AXI_AWBURST   (awburst),
-        .S_AXI_AWLOCK    (awlock),
-        .S_AXI_AWCACHE   (awcache),
-        .S_AXI_AWPROT    (awprot),
-        .S_AXI_AWQOS     (awqos),
-        .S_AXI_AWVALID   (awvalid),
-        .S_AXI_AWREADY   (awready),
-
-        .S_AXI_WDATA     (wdata),
-        .S_AXI_WSTRB     (wstrb),
-        .S_AXI_WLAST     (wlast),
-        .S_AXI_WVALID    (wvalid),
-        .S_AXI_WREADY    (wready),
-
-        .S_AXI_BID       (bid),
-        .S_AXI_BRESP     (bresp),
-        .S_AXI_BVALID    (bvalid),
-        .S_AXI_BREADY    (bready),
-
-        .S_AXI_ARID      (arid),
-        .S_AXI_ARADDR    (araddr),
-        .S_AXI_ARLEN     (arlen),
-        .S_AXI_ARSIZE    (arsize),
-        .S_AXI_ARBURST   (arburst),
-        .S_AXI_ARLOCK    (arlock),
-        .S_AXI_ARCACHE   (arcache),
-        .S_AXI_ARPROT    (arprot),
-        .S_AXI_ARQOS     (arqos),
-        .S_AXI_ARVALID   (arvalid),
-        .S_AXI_ARREADY   (arready),
-
-        .S_AXI_RID       (rid),
-        .S_AXI_RDATA     (rdata),
-        .S_AXI_RRESP     (rresp),
-        .S_AXI_RLAST     (rlast),
-        .S_AXI_RVALID    (rvalid),
-        .S_AXI_RREADY    (rready)
+    axi4_slave u_slave (
+        .S_AXI_ACLK (clk), .S_AXI_ARESETN (resetn),
+        .S_AXI_AWID (aw_s_data[43:40]), .S_AXI_AWADDR (aw_s_data[39:8]),
+        .S_AXI_AWLEN (aw_s_data[7:0]),
+        .S_AXI_AWVALID (aw_s_valid), .S_AXI_AWREADY (aw_s_ready),
+        .S_AXI_WDATA (w_s_data[36:5]), .S_AXI_WSTRB (w_s_data[4:1]),
+        .S_AXI_WLAST (w_s_data[0]),
+        .S_AXI_WVALID (w_s_valid), .S_AXI_WREADY (w_s_ready),
+        .S_AXI_BID (s_bid), .S_AXI_BRESP (s_bresp),
+        .S_AXI_BVALID (s_bvalid), .S_AXI_BREADY (s_bready),
+        .S_AXI_ARID (ar_s_data[43:40]), .S_AXI_ARADDR (ar_s_data[39:8]),
+        .S_AXI_ARLEN (ar_s_data[7:0]),
+        .S_AXI_ARVALID (ar_s_valid), .S_AXI_ARREADY (ar_s_ready),
+        .S_AXI_RID (s_rid), .S_AXI_RDATA (s_rdata), .S_AXI_RRESP (s_rresp),
+        .S_AXI_RLAST (s_rlast), .S_AXI_RVALID (s_rvalid), .S_AXI_RREADY (s_rready)
     );
+
+    //-------------------------------------------------------------------------
+    // AW : master -> master side -> slave side -> slave
+    //-------------------------------------------------------------------------
+    axi4_reg_stage #(.WIDTH(44)) aw_master_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  ({m_awid, m_awaddr, m_awlen}),
+        .in_valid (m_awvalid),  .in_ready (m_awready),
+        .out_data (aw_x_data),  .out_valid (aw_x_valid), .out_ready (aw_x_ready));
+
+    axi4_reg_stage #(.WIDTH(44)) aw_slave_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  (aw_x_data),  .in_valid (aw_x_valid),  .in_ready (aw_x_ready),
+        .out_data (aw_s_data),  .out_valid (aw_s_valid), .out_ready (aw_s_ready));
+
+    //-------------------------------------------------------------------------
+    // W : master -> master side -> slave side -> slave
+    //-------------------------------------------------------------------------
+    axi4_reg_stage #(.WIDTH(37)) w_master_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  ({m_wdata, m_wstrb, m_wlast}),
+        .in_valid (m_wvalid),   .in_ready (m_wready),
+        .out_data (w_x_data),   .out_valid (w_x_valid),  .out_ready (w_x_ready));
+
+    axi4_reg_stage #(.WIDTH(37)) w_slave_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  (w_x_data),   .in_valid (w_x_valid),   .in_ready (w_x_ready),
+        .out_data (w_s_data),   .out_valid (w_s_valid),  .out_ready (w_s_ready));
+
+    //-------------------------------------------------------------------------
+    // AR : master -> master side -> slave side -> slave
+    //-------------------------------------------------------------------------
+    axi4_reg_stage #(.WIDTH(44)) ar_master_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  ({m_arid, m_araddr, m_arlen}),
+        .in_valid (m_arvalid),  .in_ready (m_arready),
+        .out_data (ar_x_data),  .out_valid (ar_x_valid), .out_ready (ar_x_ready));
+
+    axi4_reg_stage #(.WIDTH(44)) ar_slave_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  (ar_x_data),  .in_valid (ar_x_valid),  .in_ready (ar_x_ready),
+        .out_data (ar_s_data),  .out_valid (ar_s_valid), .out_ready (ar_s_ready));
+
+    //-------------------------------------------------------------------------
+    // B : slave -> slave side -> master side -> master
+    //-------------------------------------------------------------------------
+    axi4_reg_stage #(.WIDTH(6)) b_slave_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  ({s_bid, s_bresp}),
+        .in_valid (s_bvalid),   .in_ready (s_bready),
+        .out_data (b_x_data),   .out_valid (b_x_valid),  .out_ready (b_x_ready));
+
+    axi4_reg_stage #(.WIDTH(6)) b_master_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  (b_x_data),   .in_valid (b_x_valid),   .in_ready (b_x_ready),
+        .out_data ({m_bid, m_bresp}),
+        .out_valid (m_bvalid),  .out_ready (m_bready));
+
+    //-------------------------------------------------------------------------
+    // R : slave -> slave side -> master side -> master
+    //-------------------------------------------------------------------------
+    axi4_reg_stage #(.WIDTH(39)) r_slave_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  ({s_rid, s_rdata, s_rresp, s_rlast}),
+        .in_valid (s_rvalid),   .in_ready (s_rready),
+        .out_data (r_x_data),   .out_valid (r_x_valid),  .out_ready (r_x_ready));
+
+    axi4_reg_stage #(.WIDTH(39)) r_master_side (
+        .clk (clk), .resetn (resetn),
+        .in_data  (r_x_data),   .in_valid (r_x_valid),   .in_ready (r_x_ready),
+        .out_data ({m_rid, m_rdata, m_rresp, m_rlast}),
+        .out_valid (m_rvalid),  .out_ready (m_rready));
 
 endmodule
 

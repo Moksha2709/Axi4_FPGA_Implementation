@@ -1,42 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 314" width="1740" height="942" role="img" aria-label="Timing of a 4-beat read burst on the bare design.">
-<style>text{font-family:'Cascadia Mono',Consolas,monospace}.grid{stroke:#C9D2DE;stroke-width:1}.cyc{font-size:11px;fill:#5B6B80}.sig{font-size:12px;fill:#1E2A3B}.w{fill:none;stroke-width:2.2;stroke-linejoin:round}.host{stroke:#5B6B80}.wr{stroke:#3B6FD0}.rd{stroke:#2E8B57}.hs{fill:#C98A00;stroke:#F5F7FA;stroke-width:1.5}</style><rect width="580" height="314" fill="#F5F7FA"/>
-<line x1="150" y1="36" x2="150" y2="306" class="grid"/>
-<text x="176.0" y="28" text-anchor="middle" class="cyc">0</text>
-<line x1="202" y1="36" x2="202" y2="306" class="grid"/>
-<text x="228.0" y="28" text-anchor="middle" class="cyc">1</text>
-<line x1="254" y1="36" x2="254" y2="306" class="grid"/>
-<text x="280.0" y="28" text-anchor="middle" class="cyc">2</text>
-<line x1="306" y1="36" x2="306" y2="306" class="grid"/>
-<text x="332.0" y="28" text-anchor="middle" class="cyc">3</text>
-<line x1="358" y1="36" x2="358" y2="306" class="grid"/>
-<text x="384.0" y="28" text-anchor="middle" class="cyc">4</text>
-<line x1="410" y1="36" x2="410" y2="306" class="grid"/>
-<text x="436.0" y="28" text-anchor="middle" class="cyc">5</text>
-<line x1="462" y1="36" x2="462" y2="306" class="grid"/>
-<text x="488.0" y="28" text-anchor="middle" class="cyc">6</text>
-<line x1="514" y1="36" x2="514" y2="306" class="grid"/>
-<text x="540.0" y="28" text-anchor="middle" class="cyc">7</text>
-<line x1="566" y1="36" x2="566" y2="306" class="grid"/>
-<text x="140" y="28" text-anchor="end" class="cyc">clock cycle</text>
-<text x="140" y="64.0" text-anchor="end" class="sig">cmd_start_read</text>
-<path d="M150,50 L202,50 L202,69 L254,69 L306,69 L358,69 L410,69 L462,69 L514,69 L566,69" class="w host"/>
-<text x="140" y="96.0" text-anchor="end" class="sig">busy (master state)</text>
-<path d="M150,101 L202,101 L202,82 L254,82 L306,82 L358,82 L410,82 L462,82 L462,101 L514,101 L566,101" class="w host"/>
-<text x="140" y="128.0" text-anchor="end" class="sig">ARVALID</text>
-<path d="M150,133 L202,133 L202,114 L254,114 L254,133 L306,133 L358,133 L410,133 L462,133 L514,133 L566,133" class="w rd"/>
-<circle cx="228.0" cy="114" r="5.5" class="hs"/>
-<text x="140" y="160.0" text-anchor="end" class="sig">ARREADY</text>
-<path d="M150,146 L202,146 L254,146 L254,165 L306,165 L358,165 L410,165 L462,165 L514,165 L514,146 L566,146" class="w rd"/>
-<text x="140" y="192.0" text-anchor="end" class="sig">RVALID</text>
-<path d="M150,197 L202,197 L254,197 L254,178 L306,178 L358,178 L410,178 L462,178 L462,197 L514,197 L566,197" class="w rd"/>
-<circle cx="280.0" cy="178" r="5.5" class="hs"/>
-<circle cx="332.0" cy="178" r="5.5" class="hs"/>
-<circle cx="384.0" cy="178" r="5.5" class="hs"/>
-<circle cx="436.0" cy="178" r="5.5" class="hs"/>
-<text x="140" y="224.0" text-anchor="end" class="sig">RREADY</text>
-<path d="M150,229 L202,229 L254,229 L254,210 L306,210 L358,210 L410,210 L462,210 L462,229 L514,229 L566,229" class="w rd"/>
-<text x="140" y="256.0" text-anchor="end" class="sig">RLAST</text>
-<path d="M150,261 L202,261 L254,261 L306,261 L358,261 L410,261 L410,242 L462,242 L462,261 L514,261 L566,261" class="w rd"/>
-<text x="140" y="288.0" text-anchor="end" class="sig">cmd_done</text>
-<path d="M150,293 L202,293 L254,293 L306,293 L358,293 L410,293 L462,293 L462,274 L514,274 L514,293 L566,293" class="w host"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970 282" width="2910" height="846" role="img" aria-label="Timing of the master reading the four words back.">
+<style>text{font-family:'Cascadia Mono',Consolas,monospace}.grid{stroke:#C9D2DE;stroke-width:1}.cyc{font-size:11px;fill:#5B6B80}.sig{font-size:12px;fill:#1E2A3B}.w{fill:none;stroke-width:2.2;stroke-linejoin:round}.host{stroke:#5B6B80}.mst{stroke:#3B6FD0}.slv{stroke:#7152C9}.hs{fill:#C98A00;stroke:#F5F7FA;stroke-width:1.5}</style><rect width="970" height="282" fill="#F5F7FA"/>
+<line x1="220" y1="36" x2="220" y2="274" class="grid"/>
+<text x="243.0" y="28" text-anchor="middle" class="cyc">0</text>
+<line x1="266" y1="36" x2="266" y2="274" class="grid"/>
+<text x="289.0" y="28" text-anchor="middle" class="cyc">1</text>
+<line x1="312" y1="36" x2="312" y2="274" class="grid"/>
+<text x="335.0" y="28" text-anchor="middle" class="cyc">2</text>
+<line x1="358" y1="36" x2="358" y2="274" class="grid"/>
+<text x="381.0" y="28" text-anchor="middle" class="cyc">3</text>
+<line x1="404" y1="36" x2="404" y2="274" class="grid"/>
+<text x="427.0" y="28" text-anchor="middle" class="cyc">4</text>
+<line x1="450" y1="36" x2="450" y2="274" class="grid"/>
+<text x="473.0" y="28" text-anchor="middle" class="cyc">5</text>
+<line x1="496" y1="36" x2="496" y2="274" class="grid"/>
+<text x="519.0" y="28" text-anchor="middle" class="cyc">6</text>
+<line x1="542" y1="36" x2="542" y2="274" class="grid"/>
+<text x="565.0" y="28" text-anchor="middle" class="cyc">7</text>
+<line x1="588" y1="36" x2="588" y2="274" class="grid"/>
+<text x="611.0" y="28" text-anchor="middle" class="cyc">8</text>
+<line x1="634" y1="36" x2="634" y2="274" class="grid"/>
+<text x="657.0" y="28" text-anchor="middle" class="cyc">9</text>
+<line x1="680" y1="36" x2="680" y2="274" class="grid"/>
+<text x="703.0" y="28" text-anchor="middle" class="cyc">10</text>
+<line x1="726" y1="36" x2="726" y2="274" class="grid"/>
+<text x="749.0" y="28" text-anchor="middle" class="cyc">11</text>
+<line x1="772" y1="36" x2="772" y2="274" class="grid"/>
+<text x="795.0" y="28" text-anchor="middle" class="cyc">12</text>
+<line x1="818" y1="36" x2="818" y2="274" class="grid"/>
+<text x="841.0" y="28" text-anchor="middle" class="cyc">13</text>
+<line x1="864" y1="36" x2="864" y2="274" class="grid"/>
+<text x="887.0" y="28" text-anchor="middle" class="cyc">14</text>
+<line x1="910" y1="36" x2="910" y2="274" class="grid"/>
+<text x="933.0" y="28" text-anchor="middle" class="cyc">15</text>
+<line x1="956" y1="36" x2="956" y2="274" class="grid"/>
+<text x="210" y="28" text-anchor="end" class="cyc">clock cycle</text>
+<text x="210" y="64.0" text-anchor="end" class="sig">ARVALID (master)</text>
+<path d="M220,69 L266,69 L266,50 L312,50 L312,69 L358,69 L404,69 L450,69 L496,69 L542,69 L588,69 L634,69 L680,69 L726,69 L772,69 L818,69 L864,69 L910,69 L956,69" class="w mst"/>
+<circle cx="289.0" cy="50" r="5.5" class="hs"/>
+<text x="210" y="96.0" text-anchor="end" class="sig">ARREADY (master)</text>
+<path d="M220,82 L266,82 L312,82 L312,101 L358,101 L358,82 L404,82 L450,82 L496,82 L542,82 L588,82 L634,82 L680,82 L726,82 L772,82 L818,82 L864,82 L910,82 L956,82" class="w mst"/>
+<text x="210" y="128.0" text-anchor="end" class="sig">ARVALID (slave side)</text>
+<path d="M220,133 L266,133 L312,133 L358,133 L358,114 L404,114 L404,133 L450,133 L496,133 L542,133 L588,133 L634,133 L680,133 L726,133 L772,133 L818,133 L864,133 L910,133 L956,133" class="w slv"/>
+<circle cx="381.0" cy="114" r="5.5" class="hs"/>
+<text x="210" y="160.0" text-anchor="end" class="sig">RVALID (master)</text>
+<path d="M220,165 L266,165 L312,165 L358,165 L404,165 L450,165 L496,165 L496,146 L542,146 L542,165 L588,165 L588,146 L634,146 L634,165 L680,165 L680,146 L726,146 L726,165 L772,165 L772,146 L818,146 L818,165 L864,165 L910,165 L956,165" class="w mst"/>
+<circle cx="519.0" cy="146" r="5.5" class="hs"/>
+<circle cx="611.0" cy="146" r="5.5" class="hs"/>
+<circle cx="703.0" cy="146" r="5.5" class="hs"/>
+<circle cx="795.0" cy="146" r="5.5" class="hs"/>
+<text x="210" y="192.0" text-anchor="end" class="sig">RREADY (master)</text>
+<path d="M220,197 L266,197 L312,197 L312,178 L358,178 L404,178 L450,178 L496,178 L542,178 L588,178 L634,178 L680,178 L726,178 L772,178 L818,178 L818,197 L864,197 L910,197 L956,197" class="w mst"/>
+<text x="210" y="224.0" text-anchor="end" class="sig">RLAST (master)</text>
+<path d="M220,229 L266,229 L312,229 L358,229 L404,229 L450,229 L496,229 L542,229 L588,229 L634,229 L680,229 L726,229 L772,229 L772,210 L818,210 L818,229 L864,229 L910,229 L956,229" class="w mst"/>
+<text x="210" y="256.0" text-anchor="end" class="sig">done</text>
+<path d="M220,261 L266,261 L312,261 L358,261 L404,261 L450,261 L496,261 L542,261 L588,261 L634,261 L680,261 L726,261 L772,261 L818,261 L818,242 L864,242 L910,242 L956,242" class="w host"/>
 </svg>

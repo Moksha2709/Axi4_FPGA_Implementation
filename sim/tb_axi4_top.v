@@ -1,117 +1,55 @@
 //=============================================================================
-// tb_axi4_top.v  --  Level 3 : integrated AXI4 system testbench
+// tb_axi4_top.v  --  the whole system: master, D flip-flop stages, slave
 //
-// Drives axi4_top, which is the manager wired directly to the subordinate.
-// Everything is exercised from the host ports only, exactly as real logic in
-// the fabric would use it.
+// There is nothing to drive.  The master starts the transactions itself, so
+// the testbench only supplies the clock and the reset, then watches.
 //
-// Tests
-//   I1 8-beat INCR write then read back
-//   I2 WRAP burst written, then read back linearly
-//   I3 FIXED burst: every beat lands on the same address
-//   I4 WSTRB byte merging across a burst
-//   I6 read back-pressure from the host mid-burst
-//   I7 asynchronous reset in the middle of a write burst, then recovery
-//   I8 32-beat write and read, used to measure sustained throughput
+// What it checks
+//   1  the master finishes (done) in a sensible time
+//   2  the master's own comparison says pass
+//   3  the four words really are in the slave's memory at 0x10..0x1C
+//   4  every B and R response is OKAY and carries the right ID
+//   5  the protocol rule: once VALID is high, VALID and the payload stay put
+//      until READY (checked on AW, W and AR, at the master)
+//   6  reset in the middle of the sequence, then it runs again and passes
 //=============================================================================
 
 `timescale 1ns / 1ps
 
 module tb_axi4_top;
 
-    localparam CLK_PERIOD    = 10;
-    localparam ID_WIDTH      = 4;
-    localparam ADDR_WIDTH    = 32;
-    localparam DATA_WIDTH    = 32;
-    localparam MEM_ADDR_BITS = 12;
+    localparam CLK_PERIOD = 10;
 
-    localparam [1:0] RESP_OKAY   = 2'b00;
+    reg  clk    = 1'b0;
+    reg  resetn = 1'b0;
+    wire done, pass;
 
-    localparam [1:0] BURST_FIXED = 2'b00;
-    localparam [1:0] BURST_INCR  = 2'b01;
-    localparam [1:0] BURST_WRAP  = 2'b10;
+    always #(CLK_PERIOD/2) clk = ~clk;
 
-    //-------------------------------------------------------------------------
-    reg ACLK    = 1'b0;
-    reg ARESETn = 1'b0;
-
-    reg  [ID_WIDTH-1:0]   cmd_id          = 0;
-    reg  [ADDR_WIDTH-1:0] cmd_addr        = 0;
-    reg  [7:0]            cmd_len         = 0;
-    reg  [2:0]            cmd_size        = 3'd2;
-    reg  [1:0]            cmd_burst       = BURST_INCR;
-    reg                   cmd_start_write = 0;
-    reg                   cmd_start_read  = 0;
-    wire                  cmd_busy = (uut.u_master.state != 3'd0);  // watched inside the DUT
-    wire                  cmd_done;
-    wire [1:0]            cmd_resp;
-
-    reg  [DATA_WIDTH-1:0]     hw_data  = 0;
-    reg  [(DATA_WIDTH/8)-1:0] hw_strb  = 0;
-    reg                       hw_valid = 0;
-    wire                      hw_ready;
-
-    wire [DATA_WIDTH-1:0] hr_data;
-    wire                  hr_valid;
-    reg                   hr_ready = 0;
+    axi4_top uut (.clk(clk), .resetn(resetn), .done(done), .pass(pass));
 
     integer errors = 0;
     integer checks = 0;
+    integer cycles;
 
-    reg [DATA_WIDTH-1:0]     wbuf [0:255];
-    reg [(DATA_WIDTH/8)-1:0] sbuf [0:255];
-    reg [DATA_WIDTH-1:0]     rbuf [0:255];
-
-    always #(CLK_PERIOD/2) ACLK = ~ACLK;
-
-    //-------------------------------------------------------------------------
-    axi4_top #(
-        .ID_WIDTH      (ID_WIDTH),
-        .ADDR_WIDTH    (ADDR_WIDTH),
-        .DATA_WIDTH    (DATA_WIDTH),
-        .MEM_ADDR_BITS (MEM_ADDR_BITS)
-    ) uut (
-        .ACLK            (ACLK),
-        .ARESETn         (ARESETn),
-
-        .cmd_start_write (cmd_start_write),
-        .cmd_start_read  (cmd_start_read),
-        .cmd_id          (cmd_id),
-        .cmd_addr        (cmd_addr),
-        .cmd_len         (cmd_len),
-        .cmd_size        (cmd_size),
-        .cmd_burst       (cmd_burst),
-        .cmd_done        (cmd_done),
-        .cmd_resp        (cmd_resp),
-
-        .hw_data         (hw_data),
-        .hw_strb         (hw_strb),
-        .hw_valid        (hw_valid),
-        .hw_ready        (hw_ready),
-
-        .hr_data         (hr_data),
-        .hr_valid        (hr_valid),
-        .hr_ready        (hr_ready)
-    );
-
-    //-------------------------------------------------------------------------
-    // Reporting
-    //-------------------------------------------------------------------------
-    task step;
-        begin
-            @(posedge ACLK);
-            #1;
-        end
-    endtask
-
-    task fail(input [8*48-1:0] msg);
+    task fail(input [8*56-1:0] msg);
         begin
             errors = errors + 1;
             $display("  [FAIL] %0s  (t=%0t)", msg, $time);
         end
     endtask
 
-    task chk32(input [8*32-1:0] name, input [31:0] got, input [31:0] exp);
+    task check(input [8*40-1:0] name, input cond);
+        begin
+            checks = checks + 1;
+            if (!cond) begin
+                errors = errors + 1;
+                $display("  [FAIL] %0s", name);
+            end else $display("  [ ok ] %0s", name);
+        end
+    endtask
+
+    task check32(input [8*40-1:0] name, input [31:0] got, input [31:0] exp);
         begin
             checks = checks + 1;
             if (got !== exp) begin
@@ -121,289 +59,120 @@ module tb_axi4_top;
         end
     endtask
 
-    task chk2(input [8*32-1:0] name, input [1:0] got, input [1:0] exp);
-        begin
-            checks = checks + 1;
-            if (got !== exp) begin
-                errors = errors + 1;
-                $display("  [FAIL] %0s : got 2'b%02b expected 2'b%02b", name, got, exp);
-            end else $display("  [ ok ] %0s = 2'b%02b", name, got);
+    //-------------------------------------------------------------------------
+    // Always-on monitors on the master's own ports
+    //-------------------------------------------------------------------------
+    // Responses must be OKAY and carry the master's ID (1).
+    always @(posedge clk) begin
+        if (resetn) begin
+            if (uut.m_bvalid && uut.m_bready) begin
+                if (uut.m_bresp !== 2'b00) fail("BRESP is not OKAY");
+                if (uut.m_bid   !== 4'd1)  fail("BID is not the ID that was sent");
+            end
+            if (uut.m_rvalid && uut.m_rready) begin
+                if (uut.m_rresp !== 2'b00) fail("RRESP is not OKAY");
+                if (uut.m_rid   !== 4'd1)  fail("RID is not the ID that was sent");
+            end
         end
-    endtask
+    end
 
-    task chk_int(input [8*32-1:0] name, input integer got, input integer exp);
-        begin
-            checks = checks + 1;
-            if (got !== exp) begin
-                errors = errors + 1;
-                $display("  [FAIL] %0s : got %0d expected %0d", name, got, exp);
-            end else $display("  [ ok ] %0s = %0d", name, got);
+    // Once VALID is high, VALID and the payload must not change until READY.
+    reg        aw_pend = 1'b0, w_pend = 1'b0, ar_pend = 1'b0;
+    reg [43:0] aw_hold = 44'd0;
+    reg [36:0] w_hold  = 37'd0;
+    reg [43:0] ar_hold = 44'd0;
+    always @(posedge clk) begin
+        if (!resetn) begin
+            aw_pend <= 1'b0; w_pend <= 1'b0; ar_pend <= 1'b0;
+        end else begin
+            if (aw_pend && (!uut.m_awvalid ||
+                            {uut.m_awid, uut.m_awaddr, uut.m_awlen} !== aw_hold))
+                fail("AW changed or dropped before AWREADY");
+            if (w_pend && (!uut.m_wvalid ||
+                           {uut.m_wdata, uut.m_wstrb, uut.m_wlast} !== w_hold))
+                fail("W changed or dropped before WREADY");
+            if (ar_pend && (!uut.m_arvalid ||
+                            {uut.m_arid, uut.m_araddr, uut.m_arlen} !== ar_hold))
+                fail("AR changed or dropped before ARREADY");
+
+            aw_pend <= uut.m_awvalid && !uut.m_awready;
+            w_pend  <= uut.m_wvalid  && !uut.m_wready;
+            ar_pend <= uut.m_arvalid && !uut.m_arready;
+            aw_hold <= {uut.m_awid, uut.m_awaddr, uut.m_awlen};
+            w_hold  <= {uut.m_wdata, uut.m_wstrb, uut.m_wlast};
+            ar_hold <= {uut.m_arid, uut.m_araddr, uut.m_arlen};
         end
-    endtask
+    end
 
     //-------------------------------------------------------------------------
-    // Host drivers
-    //-------------------------------------------------------------------------
-    integer cycles_used;
-
-    task host_write(input [ID_WIDTH-1:0] id, input [ADDR_WIDTH-1:0] addr,
-                    input [7:0] len, input [2:0] size, input [1:0] burst,
-                    input integer gap);
-        integer b, i, t0;
+    task wait_done(input integer limit);
         begin
-            while (cmd_busy) step;
-            t0              = $time;
-            cmd_id          = id;
-            cmd_addr        = addr;
-            cmd_len         = len;
-            cmd_size        = size;
-            cmd_burst       = burst;
-            cmd_start_write = 1'b1;
-            step;
-            cmd_start_write = 1'b0;
-
-            for (b = 0; b <= len; b = b + 1) begin
-                hw_data  = wbuf[b];
-                hw_strb  = sbuf[b];
-                hw_valid = 1'b1;
-                while (!hw_ready) step;
-                step;
-                if (gap > 0) begin
-                    hw_valid = 1'b0;
-                    for (i = 0; i < gap; i = i + 1) step;
-                end
-            end
-            hw_valid = 1'b0;
-
-            while (!cmd_done) begin
-                if (!cmd_busy) fail("cmd_busy low before cmd_done");
-                step;
-            end
-            cycles_used = ($time - t0) / CLK_PERIOD;
-        end
-    endtask
-
-    task host_read(input [ID_WIDTH-1:0] id, input [ADDR_WIDTH-1:0] addr,
-                   input [7:0] len, input [2:0] size, input [1:0] burst,
-                   input integer stall);
-        integer b, i, t0;
-        begin
-            while (cmd_busy) step;
-            t0             = $time;
-            cmd_id         = id;
-            cmd_addr       = addr;
-            cmd_len        = len;
-            cmd_size       = size;
-            cmd_burst      = burst;
-            cmd_start_read = 1'b1;
-            step;
-            cmd_start_read = 1'b0;
-
-            hr_ready = (stall == 0);
-            for (b = 0; b <= len; b = b + 1) begin
-                if (stall > 0) begin
-                    hr_ready = 1'b0;
-                    while (!hr_valid) step;
-                    for (i = 0; i < stall; i = i + 1) step;
-                    hr_ready = 1'b1;
-                end else begin
-                    while (!hr_valid) step;
-                end
-
-                rbuf[b] = hr_data;
-
-                step;
-                if (stall > 0) hr_ready = 1'b0;
-            end
-            hr_ready = 1'b0;
-
-            while (!cmd_done) begin
-                if (!cmd_busy) fail("cmd_busy low before cmd_done");
-                step;
-            end
-            cycles_used = ($time - t0) / CLK_PERIOD;
-        end
-    endtask
-
-    task fill_pattern(input [7:0] len, input [31:0] seed);
-        integer b;
-        begin
-            for (b = 0; b <= len; b = b + 1) begin
-                wbuf[b] = seed + (b * 32'h0010_0001);
-                sbuf[b] = {(DATA_WIDTH/8){1'b1}};
+            cycles = 0;
+            while (!done && cycles < limit) begin
+                @(posedge clk);
+                cycles = cycles + 1;
             end
         end
     endtask
 
-    integer b;
-    integer wr_cycles_32;
-    integer rd_cycles_32;
+    task check_memory;
+        begin
+            check32("memory[0x10]", uut.u_slave.mem[4], 32'hA5A5_0001);
+            check32("memory[0x14]", uut.u_slave.mem[5], 32'h5A5A_0002);
+            check32("memory[0x18]", uut.u_slave.mem[6], 32'hDEAD_BEEF);
+            check32("memory[0x1C]", uut.u_slave.mem[7], 32'h0BAD_F00D);
+        end
+    endtask
 
     //-------------------------------------------------------------------------
     initial begin
         $dumpfile("tb_axi4_top.vcd");
         $dumpvars(0, tb_axi4_top);
 
-        $display("\n==== Level 3 : axi4_top integration test ====");
+        $display("\n==== tb_axi4_top : master + D flip-flop stages + slave ====");
 
-        ARESETn = 1'b0;
-        repeat (5) @(posedge ACLK);
-        #1;
-        ARESETn = 1'b1;
-        step;
+        repeat (5) @(posedge clk);
+        #1 resetn = 1'b1;
 
-        //=====================================================================
-        $display("\n-- I1 : 8-beat INCR write at 0x100, then read it back");
-        fill_pattern(8'd7, 32'h1100_0000);
-        host_write(4'h1, 32'h0000_0100, 8'd7, 3'd2, BURST_INCR, 0);
-        chk2 ("I1 BRESP", cmd_resp, RESP_OKAY);
-        $display("  write took %0d cycles", cycles_used);
+        //---------------------------------------------------------------------
+        $display("\n-- the master writes four words, reads them back, compares");
+        wait_done(2000);
+        check("master finished (done)", done === 1'b1);
+        check("data read back matches (pass)", pass === 1'b1);
+        $display("  the whole sequence took %0d clock cycles", cycles);
+        check_memory;
 
-        host_read(4'h1, 32'h0000_0100, 8'd7, 3'd2, BURST_INCR, 0);
-        chk2("I1 RRESP", cmd_resp, RESP_OKAY);
-        $display("  read took %0d cycles", cycles_used);
-        for (b = 0; b <= 7; b = b + 1)
-            chk32("I1 beat", rbuf[b], 32'h1100_0000 + (b * 32'h0010_0001));
+        //---------------------------------------------------------------------
+        $display("\n-- reset in the middle of the sequence, then it runs again");
+        @(posedge clk);
+        #1 resetn = 1'b0;
+        repeat (3) @(posedge clk);
+        #1 resetn = 1'b1;
+        repeat (12) @(posedge clk);          // part-way through the first write
+        check("not done yet, mid-sequence", done === 1'b0);
+        #1 resetn = 1'b0;                    // reset again, mid-sequence
+        uut.u_slave.mem[4] = 32'd0;          // clear the four words, so the
+        uut.u_slave.mem[5] = 32'd0;          // second run has to write them again
+        uut.u_slave.mem[6] = 32'd0;
+        uut.u_slave.mem[7] = 32'd0;
+        repeat (3) @(posedge clk);
+        #1 resetn = 1'b1;
+        wait_done(2000);
+        check("finished again after the reset", done === 1'b1);
+        check("passes again after the reset", pass === 1'b1);
+        check_memory;
 
-        //=====================================================================
-        // 4 beats x 4 bytes = a 16-byte wrap window based at 0x200.
-        // Starting at 0x208 the beats go 0x208, 0x20C, 0x200, 0x204.
-        $display("\n-- I2 : WRAP burst from 0x208, then linear read of the window");
-        wbuf[0] = 32'h2000_AAAA; sbuf[0] = 4'b1111;
-        wbuf[1] = 32'h2000_BBBB; sbuf[1] = 4'b1111;
-        wbuf[2] = 32'h2000_CCCC; sbuf[2] = 4'b1111;
-        wbuf[3] = 32'h2000_DDDD; sbuf[3] = 4'b1111;
-        host_write(4'h2, 32'h0000_0208, 8'd3, 3'd2, BURST_WRAP, 0);
-        chk2("I2 BRESP", cmd_resp, RESP_OKAY);
-
-        host_read(4'h2, 32'h0000_0200, 8'd3, 3'd2, BURST_INCR, 0);
-        chk32("I2 mem[0x200]", rbuf[0], 32'h2000_CCCC);
-        chk32("I2 mem[0x204]", rbuf[1], 32'h2000_DDDD);
-        chk32("I2 mem[0x208]", rbuf[2], 32'h2000_AAAA);
-        chk32("I2 mem[0x20C]", rbuf[3], 32'h2000_BBBB);
-
-        //=====================================================================
-        $display("\n-- I3 : FIXED burst, 4 beats, all to 0x300");
-        wbuf[0] = 32'h3000_0001; sbuf[0] = 4'b1111;
-        wbuf[1] = 32'h3000_0002; sbuf[1] = 4'b1111;
-        wbuf[2] = 32'h3000_0003; sbuf[2] = 4'b1111;
-        wbuf[3] = 32'h3000_0004; sbuf[3] = 4'b1111;
-        host_write(4'h3, 32'h0000_0300, 8'd3, 3'd2, BURST_FIXED, 0);
-        chk2("I3 BRESP", cmd_resp, RESP_OKAY);
-        host_read(4'h3, 32'h0000_0300, 8'd1, 3'd2, BURST_INCR, 0);
-        chk32("I3 last beat wins", rbuf[0], 32'h3000_0004);
-        chk32("I3 next word untouched", rbuf[1], 32'h0000_0000);
-
-        //=====================================================================
-        $display("\n-- I4 : WSTRB byte merging across a 4-beat burst");
-        fill_pattern(8'd3, 32'hFFFF_FFFF);
-        for (b = 0; b <= 3; b = b + 1) wbuf[b] = 32'hFFFF_FFFF;
-        host_write(4'h4, 32'h0000_0400, 8'd3, 3'd2, BURST_INCR, 0);
-
-        wbuf[0] = 32'h1111_1111; sbuf[0] = 4'b0001;
-        wbuf[1] = 32'h2222_2222; sbuf[1] = 4'b0010;
-        wbuf[2] = 32'h3333_3333; sbuf[2] = 4'b0100;
-        wbuf[3] = 32'h4444_4444; sbuf[3] = 4'b1000;
-        host_write(4'h4, 32'h0000_0400, 8'd3, 3'd2, BURST_INCR, 0);
-        chk2("I4 BRESP", cmd_resp, RESP_OKAY);
-
-        host_read(4'h4, 32'h0000_0400, 8'd3, 3'd2, BURST_INCR, 0);
-        chk32("I4 mem[0x400]", rbuf[0], 32'hFFFF_FF11);
-        chk32("I4 mem[0x404]", rbuf[1], 32'hFFFF_22FF);
-        chk32("I4 mem[0x408]", rbuf[2], 32'hFF33_FFFF);
-        chk32("I4 mem[0x40C]", rbuf[3], 32'h44FF_FFFF);
-
-        //=====================================================================
-        $display("\n-- I6 : host stalls the read 4 cycles before every beat");
-        host_read(4'h6, 32'h0000_0100, 8'd7, 3'd2, BURST_INCR, 4);
-        chk2("I6 RRESP", cmd_resp, RESP_OKAY);
-        for (b = 0; b <= 7; b = b + 1)
-            chk32("I6 beat", rbuf[b], 32'h1100_0000 + (b * 32'h0010_0001));
-
-        //=====================================================================
-        $display("\n-- I7 : asynchronous reset in the middle of a write burst");
-        fill_pattern(8'd7, 32'h7700_0000);
-        while (cmd_busy) step;
-        cmd_id          = 4'h7;
-        cmd_addr        = 32'h0000_0600;
-        cmd_len         = 8'd7;
-        cmd_size        = 3'd2;
-        cmd_burst       = BURST_INCR;
-        cmd_start_write = 1'b1;
-        step;
-        cmd_start_write = 1'b0;
-
-        // Push two beats, then yank the reset mid-burst.
-        for (b = 0; b <= 1; b = b + 1) begin
-            hw_data  = wbuf[b];
-            hw_strb  = sbuf[b];
-            hw_valid = 1'b1;
-            while (!hw_ready) step;
-            step;
-        end
-        if (!cmd_busy) fail("manager should still be busy mid-burst");
-
-        ARESETn  = 1'b0;
-        hw_valid = 1'b0;
-        step;
-        if (cmd_busy)  fail("cmd_busy still high during reset");
-        if (hr_valid)  fail("hr_valid still high during reset");
-        repeat (3) step;
-        ARESETn = 1'b1;
-        step;
-        step;
-        chk32("I7 idle after reset", {31'd0, cmd_busy}, 32'h0);
-
-        // The system must now work normally again.
-        fill_pattern(8'd3, 32'h7A7A_0000);
-        host_write(4'h7, 32'h0000_0700, 8'd3, 3'd2, BURST_INCR, 0);
-        chk2("I7 BRESP after recovery", cmd_resp, RESP_OKAY);
-        host_read(4'h7, 32'h0000_0700, 8'd3, 3'd2, BURST_INCR, 0);
-        for (b = 0; b <= 3; b = b + 1)
-            chk32("I7 beat after recovery", rbuf[b],
-                  32'h7A7A_0000 + (b * 32'h0010_0001));
-        // How much of the aborted burst landed in memory is NOT asserted.  The
-        // memory array itself is not reset, so beats accepted before the reset
-        // remain.  A burst killed by reset has no defined outcome, so it is
-        // reported rather than checked.
-        host_read(4'h7, 32'h0000_0600, 8'd1, 3'd2, BURST_INCR, 0);
-        $display("  aborted burst left mem[0x600] = 0x%08h, mem[0x604] = 0x%08h",
-                 rbuf[0], rbuf[1]);
-
-        //=====================================================================
-        $display("\n-- I8 : 32-beat write and read, sustained throughput");
-        fill_pattern(8'd31, 32'h8800_0000);
-        host_write(4'h8, 32'h0000_0800, 8'd31, 3'd2, BURST_INCR, 0);
-        wr_cycles_32 = cycles_used;
-        chk2("I8 BRESP", cmd_resp, RESP_OKAY);
-
-        host_read(4'h8, 32'h0000_0800, 8'd31, 3'd2, BURST_INCR, 0);
-        rd_cycles_32 = cycles_used;
-        chk2("I8 RRESP", cmd_resp, RESP_OKAY);
-        for (b = 0; b <= 31; b = b + 1)
-            chk32("I8 beat", rbuf[b], 32'h8800_0000 + (b * 32'h0010_0001));
-
-        $display("\n  32-beat write : %0d cycles  (%0d cycles of fixed overhead)",
-                 wr_cycles_32, wr_cycles_32 - 32);
-        $display("  32-beat read  : %0d cycles  (%0d cycles of fixed overhead)",
-                 rd_cycles_32, rd_cycles_32 - 32);
-        $display("  32 beats cannot take fewer than 32 cycles, so the overhead");
-        $display("  above is the fixed cost of the address and response handshakes.");
-        if (wr_cycles_32 > 32 + 20) fail("write throughput worse than 1 beat/clock");
-        if (rd_cycles_32 > 32 + 20) fail("read throughput worse than 1 beat/clock");
-
-        //=====================================================================
-        repeat (5) step;
-        $display("\n==== Level 3 result : %0d checks, %0d failure(s) ====",
-                 checks, errors);
+        //---------------------------------------------------------------------
+        repeat (5) @(posedge clk);
+        $display("\n==== result : %0d checks, %0d failure(s) ====", checks, errors);
         if (errors == 0) $display("TEST PASSED\n");
         else             $display("TEST FAILED\n");
         $finish;
     end
 
     initial begin
-        #400000;
-        $display("\n[FAIL] tb_axi4_top timed out -- possible deadlock");
+        #500000;
+        $display("\n[FAIL] timed out -- possible deadlock");
         $display("TEST FAILED\n");
         $finish;
     end
