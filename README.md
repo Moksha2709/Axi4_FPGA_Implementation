@@ -1,22 +1,33 @@
 # AXI4: five channels, a master and a memory
 
-The smallest burst-capable AXI4 design that is still a real AXI4: a master that
-starts the transfers itself, a memory that answers them, and a D flip-flop
-stage at both ends of every channel.
+The smallest burst-capable AXI4 design that is still a real AXI4:
 
-Both test runs pass: **33 + 13 = 46 checks, 0 failing** (Icarus Verilog).
+```
+testbench -> [input DFFs] -> master ==AXI4== slave (memory)
+                              |
+                              +-> [output DFFs] -> testbench
+```
+
+The testbench loads an address and four words into the **input D flip-flops**.
+The **master** takes them from there and writes them to the **slave**, then
+reads them back. The words that come back are stored in the **output D
+flip-flops**. The master and the slave are connected directly: the five AXI4
+channels go straight across, with nothing in between.
+
+Both test runs pass: **33 + 43 = 76 checks, 0 failing** (Icarus Verilog).
 
 ## Files
 
 ```
 rtl/
-  axi4_master.v     the master: data in D flip-flop registers, starts by itself
-  axi4_reg_stage.v  one D flip-flop stage (holds one beat)
+  axi4_in_dff.v     input D flip-flops: address + four words, loaded by the testbench
+  axi4_master.v     the master: write four words, read them back
   axi4_slave.v      the slave: a 4 KiB memory
-  axi4_top.v        master, ten stages, slave
+  axi4_out_dff.v    output D flip-flops: the four words read back
+  axi4_top.v        wires the four together; the master and slave connect directly
 sim/
   tb_axi4_slave.v   the slave on its own, driven channel by channel (33 checks)
-  tb_axi4_top.v     the whole system, the master runs by itself   (13 checks)
+  tb_axi4_top.v     the whole system: load, start, check            (43 checks)
 results/            logs and waveforms from the passing runs
 docs/               block diagram, waveforms, presentation
 run_tests.ps1       runs both testbenches (Windows)
@@ -28,22 +39,18 @@ Makefile            same thing for GNU make
 .\run_tests.ps1 -Suite top -Wave # then open the waveform
 ```
 
-## How it fits together
+## How a run goes
 
-```
- master  --AW,W,AR-->  [stage]  -->  [stage]  -->  slave
- (D flip-flop          master side   slave side     (4 KiB memory)
-  registers)  <--B,R-- [stage]  <--  [stage]  <--
-```
-
-There is no host interface. The master holds an address and four words in D
-flip-flop registers and, after reset, runs by itself:
-
-1. write the four words to `0x10` (one burst of four beats), wait for the response
-2. read the four words back (one burst), compare with what it wrote
-
-It has two outputs: `done` (the sequence has finished) and `pass` (what came
-back equals what was written).
+1. **Load.** The testbench stores a value in each input flip-flop, one per
+   clock: `load = 1`, `load_sel` picks the register (0 = address, 1 to 4 =
+   the four words), `load_data` is the value.
+2. **Start.** The testbench raises `start`. The master:
+   - writes the four words to the address (one burst of four beats) and
+     waits for the response,
+   - reads the four words back (one burst); each beat goes to the output
+     flip-flops.
+3. **Done.** `done` goes high. The words are in `rd0..rd3`, and `pass` is 1 if
+   they equal the four that were loaded. Drop `start` to run again.
 
 ## The five channels
 
@@ -62,6 +69,17 @@ transfer happens in the cycle where both are high.
 `WLAST` and `RLAST` mark the final beat. `BID` repeats `AWID`, `RID` repeats
 `ARID`. `BRESP` and `RRESP` are always `00` (OKAY).
 
+## The master
+
+One state machine, one step per channel:
+
+`S_IDLE` (wait for `start`) → `S_AW` → `S_W` → `S_B` → `S_AR` → `S_R` →
+`S_DONE` (hold `done` until `start` drops).
+
+It holds no data of its own: the address and words are inputs from the input
+flip-flops, and every read beat leaves on `rd_valid` / `rd_idx` / `rd_data`
+for the output flip-flops.
+
 ## The slave
 
 * **Write:** take the address, then take beats until `WLAST`, writing each
@@ -71,16 +89,20 @@ transfer happens in the cycle where both are high.
   mark the last with `RLAST`.
 * Reads and writes are separate state machines.
 
-## The D flip-flop stage
+## The D flip-flops
 
-A stage holds one beat in flip-flops. While it is full it tells the sender
-"wait" (`in_ready = 0`). When the next side takes the beat, it is empty again.
+* **Input** (`axi4_in_dff`): five 32-bit registers. One is stored on each
+  clock edge where `load = 1`. Reset clears them.
+* **Output** (`axi4_out_dff`): four 32-bit registers. A read beat is stored in
+  the register for its position (`rd_idx`) on the clock edge where
+  `rd_valid = 1`. Reset clears them.
 
-`in_ready` comes straight from a flip-flop, so a late `READY` can never lose a
-beat or send one twice. A bare flip-flop on `VALID`/`READY` would not be safe
-for that reason. The cost is that a beat sits in the stage for a clock, so
-**one beat moves every two clocks**. The whole sequence (write, response,
-read, done) takes 27 clock cycles.
+## Timing
+
+With nothing between the master and the slave, a beat moves every clock the
+receiver is ready. Write address at cycle 1, four write beats at cycles 2 to
+5, response at 6, read address at 7, four read beats at 8 to 11, `done` at 12:
+**13 clock cycles from `start`**.
 
 ## What is tested
 
@@ -88,21 +110,24 @@ read, done) takes 27 clock cycles.
   data and data before address, held-off responses and read data, byte
   strobes, ID echo, the longest burst (256 beats), reset in the middle of a
   burst.
-* **Whole system (13 checks):** the master finishes and passes, the four
-  words are in the slave's memory, every response is OKAY with the right ID,
-  `VALID` and the payload hold steady until `READY` (AW, W, AR), and a reset
-  in the middle of the sequence is followed by a clean re-run.
+* **Whole system (43 checks):** nothing happens until `start`; the input
+  flip-flops hold what was loaded; the master finishes and `pass` is 1; the
+  output flip-flops and the slave's memory hold the four words; every response
+  is OKAY with the right ID; `VALID` and the payload hold steady until `READY`
+  (AW, W, AR); a second run with a different address and different words;
+  `pass` drops if a loaded word no longer matches; a reset in the middle of
+  the sequence clears the flip-flops and a reload runs clean.
 
 ## Not included
 
 Burst types other than counting up (no FIXED, no WRAP), narrow beats, the
 `AxLOCK`/`AxCACHE`/`AxPROT`/`AxQOS` signals, error responses, several
-transactions at once, a host interface.
+transactions at once, an interconnect (one master, one slave).
 
 ## Notes
 
-* The master's data is fixed in its registers. To send something else, change
-  the reset values in `axi4_master.v`.
-* One burst at a time. An address beyond the 4 KiB wraps inside it.
-* Reset is active low and asynchronous. It clears the state machines and the
-  stages; the memory contents are not cleared.
+* The master always moves four words with all bytes enabled.
+* The input flip-flops must not change while a sequence is running.
+* One burst at a time. An address beyond 4 KiB wraps inside it.
+* Reset is active low and asynchronous. It clears the master, the slave's
+  state machines and both flip-flop banks; the memory contents are not cleared.

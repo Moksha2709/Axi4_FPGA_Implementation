@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 480" width="2160" height="960" role="img" aria-label="Block diagram. axi4_master holds an address and four data words in D flip-flop registers and starts the transactions itself. Each of the five AXI4 channels AW, W, B, AR and R passes through a D flip-flop stage on the master side and another on the slave side, then reaches axi4_slave, which has a write engine, a read engine and a 4 KiB memory.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 420" width="2160" height="840" role="img" aria-label="Block diagram. The testbench loads an address and four data words into the input D flip-flops. axi4_master takes them from there and runs a write then a read over the five AXI4 channels AW, W, B, AR and R, which connect directly to axi4_slave, a 4 KiB memory. The words read back are captured in the output D flip-flops, which the testbench reads.">
 <style>
 text{fill:#1E2A3B;font-family:'Segoe UI','Nunito',Arial,sans-serif}
 .t{font-size:15px;font-weight:700}
@@ -7,107 +7,87 @@ text{fill:#1E2A3B;font-family:'Segoe UI','Nunito',Arial,sans-serif}
 .sg{font-size:11.5px;font-family:Consolas,'Cascadia Mono',monospace;fill:#1E2A3B}
 .lb{font-size:12px;font-weight:600;fill:#4F5F74}
 .band{font-size:11px;font-weight:700;letter-spacing:.12em;fill:#4F5F74}
-.pt{font-size:13px;font-weight:700}
 .wire{stroke:#34445A;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.dff{stroke:#C98A00;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
 </style>
 <defs>
   <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
     <path d="M1 1 L9 5 L1 9 z" fill="#34445A"/>
   </marker>
+  <marker id="ay" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M1 1 L9 5 L1 9 z" fill="#C98A00"/>
+  </marker>
 </defs>
-<rect width="1080" height="480" fill="#F5F7FA"/>
+<rect width="1080" height="420" fill="#F5F7FA"/>
+
+<!-- input D flip-flops -->
+<rect x="20" y="60" width="120" height="300" rx="14" fill="#FFE9A8" stroke="#C98A00" stroke-width="2"/>
+<text class="t" x="80" y="88" text-anchor="middle">Input DFFs</text>
+<text class="m" x="80" y="105" text-anchor="middle">axi4_in_dff.v</text>
+<text class="s" x="80" y="160" text-anchor="middle">address</text>
+<text class="s" x="80" y="190" text-anchor="middle">data word 0</text>
+<text class="s" x="80" y="220" text-anchor="middle">data word 1</text>
+<text class="s" x="80" y="250" text-anchor="middle">data word 2</text>
+<text class="s" x="80" y="280" text-anchor="middle">data word 3</text>
+<text class="s" x="80" y="335" text-anchor="middle">loaded by testbench</text>
 
 <!-- master -->
-<rect x="20" y="40" width="130" height="400" rx="16" fill="#D6E6FF" stroke="#3B6FD0" stroke-width="2"/>
-<text class="t" x="85" y="70" text-anchor="middle">axi4_master</text>
-<text class="m" x="85" y="88" text-anchor="middle">axi4_master.v</text>
-<text class="s" x="85" y="130" text-anchor="middle">D flip-flop</text>
-<text class="s" x="85" y="146" text-anchor="middle">registers hold</text>
-<text class="s" x="85" y="162" text-anchor="middle">the address and</text>
-<text class="s" x="85" y="178" text-anchor="middle">four data words</text>
-<text class="s" x="85" y="300" text-anchor="middle">starts by itself:</text>
-<text class="s" x="85" y="320" text-anchor="middle">write, then read</text>
-<text class="s" x="85" y="340" text-anchor="middle">back and compare</text>
-<text class="m" x="85" y="400" text-anchor="middle">out: done, pass</text>
-
-<!-- column headers -->
-<text class="band" x="320" y="78" text-anchor="middle">MASTER SIDE</text>
-<text class="band" x="550" y="78" text-anchor="middle">SLAVE SIDE</text>
+<rect x="190" y="40" width="150" height="340" rx="16" fill="#D6E6FF" stroke="#3B6FD0" stroke-width="2"/>
+<text class="t" x="265" y="70" text-anchor="middle">axi4_master</text>
+<text class="m" x="265" y="88" text-anchor="middle">axi4_master.v</text>
+<text class="s" x="265" y="150" text-anchor="middle">takes the data</text>
+<text class="s" x="265" y="168" text-anchor="middle">from the DFFs</text>
+<text class="s" x="265" y="230" text-anchor="middle">write, then read</text>
+<text class="s" x="265" y="248" text-anchor="middle">one burst of 4</text>
+<text class="m" x="265" y="345" text-anchor="middle">in: start   out: done</text>
 
 <!-- slave -->
-<rect x="700" y="40" width="360" height="400" rx="16" fill="#E6DEFA" stroke="#7152C9" stroke-width="2"/>
-<text class="t" x="880" y="64" text-anchor="middle">axi4_slave</text>
-<text class="m" x="880" y="81" text-anchor="middle">axi4_slave.v</text>
+<rect x="600" y="40" width="300" height="340" rx="16" fill="#E6DEFA" stroke="#7152C9" stroke-width="2"/>
+<text class="t" x="750" y="64" text-anchor="middle">axi4_slave</text>
+<text class="m" x="750" y="81" text-anchor="middle">axi4_slave.v</text>
+<rect x="620" y="100" width="130" height="130" rx="12" fill="#F5F7FA" stroke="#7152C9" stroke-width="1.6"/>
+<text class="t" x="685" y="160" text-anchor="middle">Write engine</text>
+<text class="s" x="685" y="182" text-anchor="middle">WSTRB per byte</text>
+<rect x="620" y="250" width="130" height="110" rx="12" fill="#F5F7FA" stroke="#7152C9" stroke-width="1.6"/>
+<text class="t" x="685" y="302" text-anchor="middle">Read engine</text>
+<text class="s" x="685" y="324" text-anchor="middle">address + 4</text>
+<rect x="800" y="110" width="80" height="240" rx="12" fill="#D9F0E3" stroke="#2E8B57" stroke-width="2"/>
+<text class="t" x="840" y="222" text-anchor="middle">4 KiB</text>
+<text class="s" x="840" y="241" text-anchor="middle">memory</text>
+<line class="wire" x1="750" y1="165" x2="798" y2="165" marker-end="url(#ah)"/>
+<line class="wire" x1="798" y1="305" x2="752" y2="305" marker-end="url(#ah)"/>
 
-<rect x="740" y="100" width="150" height="170" rx="12" fill="#F5F7FA" stroke="#7152C9" stroke-width="1.6"/>
-<text class="t" x="815" y="190" text-anchor="middle">Write engine</text>
-<text class="m" x="815" y="210" text-anchor="middle">IDLE, DATA, RESP</text>
-<text class="s" x="815" y="236" text-anchor="middle">WSTRB per byte</text>
+<!-- output D flip-flops -->
+<rect x="940" y="60" width="120" height="300" rx="14" fill="#FFE9A8" stroke="#C98A00" stroke-width="2"/>
+<text class="t" x="1000" y="88" text-anchor="middle">Output DFFs</text>
+<text class="m" x="1000" y="105" text-anchor="middle">axi4_out_dff.v</text>
+<text class="s" x="1000" y="160" text-anchor="middle">read word 0</text>
+<text class="s" x="1000" y="190" text-anchor="middle">read word 1</text>
+<text class="s" x="1000" y="220" text-anchor="middle">read word 2</text>
+<text class="s" x="1000" y="250" text-anchor="middle">read word 3</text>
+<text class="s" x="1000" y="335" text-anchor="middle">read by testbench</text>
 
-<rect x="740" y="290" width="150" height="130" rx="12" fill="#F5F7FA" stroke="#7152C9" stroke-width="1.6"/>
-<text class="t" x="815" y="350" text-anchor="middle">Read engine</text>
-<text class="m" x="815" y="370" text-anchor="middle">IDLE, DATA</text>
-<text class="s" x="815" y="396" text-anchor="middle">address + 4 per beat</text>
+<!-- input DFFs -> master -->
+<line class="dff" x1="140" y1="210" x2="188" y2="210" marker-end="url(#ay)"/>
 
-<rect x="950" y="120" width="90" height="290" rx="12" fill="#D9F0E3" stroke="#2E8B57" stroke-width="2"/>
-<text class="t" x="995" y="256" text-anchor="middle">4 KiB</text>
-<text class="s" x="995" y="275" text-anchor="middle">memory</text>
-<text class="s" x="995" y="293" text-anchor="middle">1024 × 32</text>
+<!-- the five channels, master <-> slave, direct -->
+<line class="wire" x1="340" y1="125" x2="598" y2="125" marker-end="url(#ah)"/>
+<text class="sg" x="469" y="98" text-anchor="middle">AWID AWADDR AWLEN</text>
+<text class="sg" x="469" y="112" text-anchor="middle">AWVALID AWREADY</text>
+<line class="wire" x1="340" y1="190" x2="598" y2="190" marker-end="url(#ah)"/>
+<text class="sg" x="469" y="163" text-anchor="middle">WDATA WSTRB WLAST</text>
+<text class="sg" x="469" y="177" text-anchor="middle">WVALID WREADY</text>
+<line class="wire" x1="598" y1="245" x2="342" y2="245" marker-end="url(#ah)"/>
+<text class="sg" x="469" y="222" text-anchor="middle">BID BRESP</text>
+<text class="sg" x="469" y="236" text-anchor="middle">BVALID BREADY</text>
+<line class="wire" x1="340" y1="305" x2="598" y2="305" marker-end="url(#ah)"/>
+<text class="sg" x="469" y="278" text-anchor="middle">ARID ARADDR ARLEN</text>
+<text class="sg" x="469" y="292" text-anchor="middle">ARVALID ARREADY</text>
+<line class="wire" x1="598" y1="365" x2="342" y2="365" marker-end="url(#ah)"/>
+<text class="sg" x="469" y="342" text-anchor="middle">RID RDATA RRESP RLAST</text>
+<text class="sg" x="469" y="356" text-anchor="middle">RVALID RREADY</text>
 
-<line class="wire" x1="890" y1="185" x2="948" y2="185" marker-end="url(#ah)"/>
-<text class="lb" x="919" y="177" text-anchor="middle">writes</text>
-<line class="wire" x1="948" y1="365" x2="892" y2="365" marker-end="url(#ah)"/>
-<text class="lb" x="920" y="357" text-anchor="middle">reads</text>
-
-<!-- divider -->
-<line x1="170" y1="283" x2="690" y2="283" stroke="#8A97A8" stroke-width="1.2" stroke-dasharray="3 5"/>
-<text class="band" x="166" y="104">WRITE</text>
-<text class="band" x="166" y="300">READ</text>
-
-<!-- AW -->
-<line class="wire" x1="150" y1="135" x2="288" y2="135" marker-end="url(#ah)"/>
-<line class="wire" x1="352" y1="135" x2="518" y2="135" marker-end="url(#ah)"/>
-<line class="wire" x1="582" y1="135" x2="738" y2="135" marker-end="url(#ah)"/>
-<text class="sg" x="435" y="106" text-anchor="middle">AWID AWADDR AWLEN</text>
-<text class="sg" x="435" y="120" text-anchor="middle">AWVALID AWREADY</text>
-<!-- W -->
-<line class="wire" x1="150" y1="200" x2="288" y2="200" marker-end="url(#ah)"/>
-<line class="wire" x1="352" y1="200" x2="518" y2="200" marker-end="url(#ah)"/>
-<line class="wire" x1="582" y1="200" x2="738" y2="200" marker-end="url(#ah)"/>
-<text class="sg" x="435" y="170" text-anchor="middle">WDATA WSTRB WLAST</text>
-<text class="sg" x="435" y="184" text-anchor="middle">WVALID WREADY</text>
-<!-- B (backwards) -->
-<line class="wire" x1="738" y1="258" x2="584" y2="258" marker-end="url(#ah)"/>
-<line class="wire" x1="518" y1="258" x2="354" y2="258" marker-end="url(#ah)"/>
-<line class="wire" x1="288" y1="258" x2="152" y2="258" marker-end="url(#ah)"/>
-<text class="sg" x="435" y="228" text-anchor="middle">BID BRESP</text>
-<text class="sg" x="435" y="242" text-anchor="middle">BVALID BREADY</text>
-<!-- AR -->
-<line class="wire" x1="150" y1="345" x2="288" y2="345" marker-end="url(#ah)"/>
-<line class="wire" x1="352" y1="345" x2="518" y2="345" marker-end="url(#ah)"/>
-<line class="wire" x1="582" y1="345" x2="738" y2="345" marker-end="url(#ah)"/>
-<text class="sg" x="435" y="316" text-anchor="middle">ARID ARADDR ARLEN</text>
-<text class="sg" x="435" y="330" text-anchor="middle">ARVALID ARREADY</text>
-<!-- R (backwards) -->
-<line class="wire" x1="738" y1="405" x2="584" y2="405" marker-end="url(#ah)"/>
-<line class="wire" x1="518" y1="405" x2="354" y2="405" marker-end="url(#ah)"/>
-<line class="wire" x1="288" y1="405" x2="152" y2="405" marker-end="url(#ah)"/>
-<text class="sg" x="435" y="376" text-anchor="middle">RID RDATA RRESP RLAST</text>
-<text class="sg" x="435" y="390" text-anchor="middle">RVALID RREADY</text>
-
-<!-- the D flip-flop stages: one at the master side and one at the slave side of every channel -->
-<g fill="#FFE9A8" stroke="#C98A00" stroke-width="2">
-  <rect x="290" y="118" width="60" height="34" rx="9"/><rect x="520" y="118" width="60" height="34" rx="9"/>
-  <rect x="290" y="183" width="60" height="34" rx="9"/><rect x="520" y="183" width="60" height="34" rx="9"/>
-  <rect x="290" y="241" width="60" height="34" rx="9"/><rect x="520" y="241" width="60" height="34" rx="9"/>
-  <rect x="290" y="328" width="60" height="34" rx="9"/><rect x="520" y="328" width="60" height="34" rx="9"/>
-  <rect x="290" y="388" width="60" height="34" rx="9"/><rect x="520" y="388" width="60" height="34" rx="9"/>
-</g>
-<g class="pt" text-anchor="middle">
-  <text x="320" y="140">AW</text><text x="550" y="140">AW</text>
-  <text x="320" y="205">W</text><text x="550" y="205">W</text>
-  <text x="320" y="263">B</text><text x="550" y="263">B</text>
-  <text x="320" y="350">AR</text><text x="550" y="350">AR</text>
-  <text x="320" y="410">R</text><text x="550" y="410">R</text>
-</g>
+<!-- master -> output DFFs (read data tapped from the R channel, carried over the top) -->
+<path class="dff" d="M265 40 L265 20 L1000 20 L1000 58" marker-end="url(#ay)"/>
+<text class="lb" x="632" y="14" text-anchor="middle">each read beat (rd_valid, rd_idx, rd_data)</text>
 </svg>

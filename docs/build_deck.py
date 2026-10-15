@@ -137,7 +137,7 @@ def title(slide, label, dark=False):
 
 def footer(slide, dark=False):
     c = ON_DARK_M if dark else MUTED
-    text(slide, MX, 7.0, 8, 0.3, "AXI4: a master, D flip-flop stages and a memory, in Verilog",
+    text(slide, MX, 7.0, 10, 0.3, "AXI4: input D flip-flops, a master, a slave and output D flip-flops, in Verilog",
          size=11, color=c, name="Footer")
     text(slide, W - MX - 1.0, 7.0, 1.0, 0.3, str(page_no[0]), size=11, color=c,
          align=PP_ALIGN.RIGHT, name="Page number")
@@ -169,17 +169,18 @@ def card_row(slide, y, h, cards, n, head_size=22, body_size=16, gap=0.22):
 # 1  Cover
 # =========================================================================
 s = new_slide(NAVY, "Open with the one-sentence summary: we built an AXI4 master and an AXI4 memory in "
-              "Verilog. The master holds its data in D flip-flop registers and starts the transfers "
-              "by itself. Every one of the five channels passes through a D flip-flop stage at the "
-              "master side and another at the slave side. Everything shown comes from the simulation "
-              "in the project folder, so every number can be reproduced live. The five amber pills are "
-              "the five AXI channels; we come back to each one.")
+              "Verilog. The testbench loads an address and four words into input D flip-flops. The "
+              "master takes them from there, writes them to the slave over the five AXI channels, then "
+              "reads them back into output D flip-flops. The master and the slave are connected "
+              "directly. Everything shown comes from the simulation in the project folder, so every "
+              "number can be reproduced live. The five amber pills are the five AXI channels; we come "
+              "back to each one.")
 text(s, 0.9, 1.5, 11, 0.4, "VIVA DEMONSTRATION", size=18, bold=True, color=AMBER, name="Eyebrow")
 text(s, 0.9, 2.05, 11.4, 2.4, "AXI4: five channels, a master and a memory", size=60, bold=True,
      color=ON_DARK, font=HEAD, name="Title")
 text(s, 0.9, 4.25, 10.8, 1.0,
-     "The master starts the transfers itself, every channel passes through D flip-flop stages, "
-     "and 46 checks pass in simulation.",
+     "Input D flip-flops, master, slave, output D flip-flops: a write and a read, "
+     "and 76 checks pass in simulation.",
      size=24, color=ON_DARK_M)
 px = 0.9
 for lab, w_ in (("AW", 0.9), ("W", 0.8), ("B", 0.8), ("AR", 0.9), ("R", 0.8)):
@@ -191,22 +192,26 @@ text(s, 0.9, 6.7, 11, 0.4, "[Your name]   ·   [Course and institution]   ·   [
 # =========================================================================
 # 2  What we built
 # =========================================================================
-s = new_slide(LIGHT, "Four small files. The master is the active side: it holds the address and four "
-              "words in D flip-flop registers and starts the transfers itself. The stage is the small "
-              "block that holds one beat; there are ten of them, two on each channel. The slave is a "
-              "4 KiB memory that answers the five channels. The top level only wires them together.")
+s = new_slide(LIGHT, "Five small files, and the top level that wires them. The input D flip-flops hold "
+              "the address and four words the testbench loads. The master is the active side: it takes "
+              "them from there and starts the AXI transfers when start goes high. The slave is a 4 KiB "
+              "memory that answers the five channels. The output D flip-flops catch the words that "
+              "come back. The top level only wires them together; the master and slave are connected "
+              "directly.")
 title(s, "What we built")
-text(s, MX, 1.4, 11.9, 0.5, "Four files, each with one job.", size=20, color=MUTED)
+text(s, MX, 1.4, 11.9, 0.5, "Five files, each with one job.", size=20, color=MUTED)
 card_row(s, 2.2, 3.9, [
+    (AMBER_F, "Input DFFs", "axi4_in_dff.v",
+     "Five registers: an address and four words. The testbench loads them."),
     (BLUE_F, "Master", "axi4_master.v",
-     "Holds an address and four words in D flip-flop registers. Writes them, reads them back, compares."),
-    (AMBER_F, "Stage", "axi4_reg_stage.v",
-     "A D flip-flop stage that holds one beat. Two of them sit on every channel."),
+     "Takes the data from the input DFFs. Writes it, then reads it back."),
     (VIOLET_F, "Slave", "axi4_slave.v",
-     "A 4 KiB memory. Answers bursts of up to 256 beats on the five channels."),
+     "A 4 KiB memory. Answers bursts of up to 256 beats."),
+    (AMBER_F, "Output DFFs", "axi4_out_dff.v",
+     "Four registers that hold the words read back."),
     (GREEN_F, "Top", "axi4_top.v",
-     "Wires the master, the ten stages and the slave together."),
-], 4)
+     "Wires it all together. Master and slave connect directly."),
+], 5, head_size=20, body_size=15, gap=0.18)
 text(s, MX, 6.4, 11.9, 0.4,
      "Full AXI4 rather than AXI4-Lite: bursts, transaction IDs, WLAST and RLAST.",
      size=16, color=MUTED, italic=True)
@@ -341,94 +346,97 @@ footer(s)
 # =========================================================================
 # 6  System architecture
 # =========================================================================
-s = new_slide(LIGHT, "Walk left to right. On the left the master, with its D flip-flop registers. "
-              "It starts the transfers by itself. Each of the five channels goes through a D "
-              "flip-flop stage at the master side and another at the slave side, shown in amber, "
-              "with the real signal names above each wire. On the right the slave has a write "
-              "engine, a read engine and a 4 KiB memory. B and R run the other way.")
+s = new_slide(LIGHT, "Walk left to right. The yellow box on the left is the input D flip-flops, loaded by "
+              "the testbench. The master takes its data from them and starts the transfers when start "
+              "goes high. The five channels, with the real signal names above each wire, go straight "
+              "across to the slave: there is no interconnect and nothing in between. On the right the "
+              "slave has a write engine, a read engine and a 4 KiB memory. Each read beat is stored "
+              "in the output D flip-flops, the yellow box on the far right. B and R run the other way.")
 title(s, "System architecture")
-picture(s, os.path.join(HERE, "axi4_block_diagram.png"), 0.9, 1.45, w=11.5,
-        alt="Block diagram: axi4_master, a D flip-flop stage at each end of every one of the five channels with signal names, axi4_slave with write engine, read engine and 4 KiB memory.")
-text(s, MX, 6.65, 11.9, 0.3,
-     "Amber boxes are the D flip-flop stages: ten in total, two on every channel.",
+picture(s, os.path.join(HERE, "axi4_block_diagram.png"), 0.9, 1.5, w=11.5,
+        alt="Block diagram: input D flip-flops, axi4_master, the five channels connecting directly to axi4_slave with write engine, read engine and 4 KiB memory, and output D flip-flops that catch the read data.")
+text(s, MX, 6.3, 11.9, 0.3,
+     "Yellow boxes are the D flip-flops. The master and the slave are connected directly.",
      size=14, color=MUTED, italic=True)
 footer(s)
 
 # =========================================================================
 # 7  The master
 # =========================================================================
-s = new_slide(LIGHT, "The master is one small state machine. After reset it goes by itself. S_AW "
-              "sends the write address. S_W sends the four words, one per beat, taking each from the "
-              "data registers, and raises WLAST on the fourth. S_B waits for the one response. S_AR "
-              "sends the read address. S_R takes four beats into the read registers. S_DONE raises "
-              "done, and pass says whether what came back equals what was written. There is no host "
-              "interface at all: the data comes from D flip-flop registers inside the master.")
+s = new_slide(LIGHT, "The master is one small state machine. It sits in S_IDLE until start goes high. "
+              "S_AW sends the write address. S_W sends the four words, one per beat, taken from the "
+              "input flip-flops, and raises WLAST on the fourth. S_B waits for the one response. S_AR "
+              "sends the read address. S_R takes four beats and hands each one to the output "
+              "flip-flops. S_DONE raises done and waits for start to drop, so the sequence can run "
+              "again. The master itself holds no data.")
 title(s, "The master, step by step")
 steps7 = [
-    ("S_AW", BLUE_F, "Sends the write address: 0x10, four beats."),
-    ("S_W", BLUE_F, "Sends the four words from the data registers. WLAST on the fourth."),
+    ("S_IDLE", WHITE, "Waits for start."),
+    ("S_AW", BLUE_F, "Sends the write address."),
+    ("S_W", BLUE_F, "Sends the four words from the input DFFs. WLAST on the fourth."),
     ("S_B", BLUE_F, "Waits for the one write response."),
-    ("S_AR", GREEN_F, "Sends the read address: 0x10, four beats."),
-    ("S_R", GREEN_F, "Takes four beats into the read registers. Ends on RLAST."),
-    ("S_DONE", AMBER_F, "done = 1. pass = 1 if read-back equals what was written."),
+    ("S_AR", GREEN_F, "Sends the read address."),
+    ("S_R", GREEN_F, "Hands each beat to the output DFFs. Ends on RLAST."),
+    ("S_DONE", AMBER_F, "done = 1 until start drops."),
 ]
-n7 = 6
-gap7 = 0.2
+n7 = 7
+gap7 = 0.14
 bw7 = (W - 2 * MX - (n7 - 1) * gap7) / n7
 x = MX
 for i, (nm, fill, d) in enumerate(steps7):
-    box(s, x, 1.6, bw7, 2.9, fill=fill)
-    text(s, x + 0.15, 1.78, bw7 - 0.3, 0.5, nm, size=19, bold=True, font=MONO)
-    text(s, x + 0.15, 2.4, bw7 - 0.3, 2.0, d, size=15)
+    box(s, x, 1.6, bw7, 2.9, fill=fill, line=RULE if fill == WHITE else None)
+    text(s, x + 0.12, 1.78, bw7 - 0.24, 0.5, nm, size=16, bold=True, font=MONO)
+    text(s, x + 0.12, 2.4, bw7 - 0.24, 2.0, d, size=14)
     if i < n7 - 1:
-        arrow(s, x + bw7 + 0.02, 3.05, x + bw7 + gap7 - 0.02, 3.05, color=MUTED, width=2)
+        arrow(s, x + bw7 + 0.01, 3.05, x + bw7 + gap7 - 0.01, 3.05, color=MUTED, width=2)
     x += bw7 + gap7
 box(s, MX, 4.85, 5.85, 1.8, fill=WHITE)
-text(s, MX + 0.3, 5.0, 5.3, 0.4, "Data from D flip-flops", size=18, bold=True, font=HEAD)
+text(s, MX + 0.3, 5.0, 5.3, 0.4, "Data from the input DFFs", size=18, bold=True, font=HEAD)
 text(s, MX + 0.3, 5.5, 5.3, 1.1,
-     "The address and four words sit in registers inside the master, set at reset. "
-     "To send something else, change them in axi4_master.v.", size=15)
+     "The address and four words are not in the master. The testbench loads them into the "
+     "input DFFs and the master reads them from there.", size=15)
 box(s, MX + 6.05, 4.85, 5.85, 1.8, fill=WHITE)
-text(s, MX + 6.35, 5.0, 5.3, 0.4, "No host interface", size=18, bold=True, font=HEAD)
+text(s, MX + 6.35, 5.0, 5.3, 0.4, "Start and done", size=18, bold=True, font=HEAD)
 text(s, MX + 6.35, 5.5, 5.3, 1.1,
-     "Nothing tells the master what to do. After reset it runs the sequence by itself "
-     "and reports done and pass.", size=15)
+     "Nothing happens until start goes high. done goes high when the read has finished; "
+     "drop start to run it again.", size=15)
 footer(s)
 
 # =========================================================================
 # 8  The D flip-flop stage
 # =========================================================================
-s = new_slide(LIGHT, "This is the block you asked for: a D flip-flop stage. It holds one beat. When "
-              "it is empty it says in_ready = 1 and takes a beat. When it is full it says in_ready = 0 "
-              "and offers the beat until the next side takes it. The important point is that in_ready "
-              "comes straight from a flip-flop. A bare flip-flop on VALID and READY would see READY "
-              "one cycle late, so the sender could send the same beat twice. This design cannot. The "
-              "cost is that a beat sits in the stage for a clock, so one beat moves every two clocks.")
-title(s, "The D flip-flop stage")
-box(s, MX, 1.6, 3.82, 3.0, fill=GREEN_F)
-text(s, MX + 0.3, 1.8, 3.3, 0.5, "Empty", size=24, bold=True, font=HEAD)
-text(s, MX + 0.3, 2.45, 3.3, 0.4, "in_ready = 1", size=18, bold=True, font=MONO)
-text(s, MX + 0.3, 3.05, 3.3, 1.5, "The sender may hand over a beat. The beat is captured in the flip-flops.",
+s = new_slide(LIGHT, "These are the D flip-flops you asked for, one bank at each end. The input bank is "
+              "five 32-bit registers: an address and four words. The testbench writes one register per "
+              "clock edge using load, load_sel and load_data. The master reads their outputs directly "
+              "and does not change them. The output bank is four registers. Each read beat is stored "
+              "in the register for its position, using rd_valid and rd_idx. pass is done AND all four "
+              "output registers equal the four input registers. Reset clears both banks.")
+title(s, "The D flip-flops at both ends")
+box(s, MX, 1.6, 3.82, 3.0, fill=AMBER_F)
+text(s, MX + 0.3, 1.8, 3.3, 0.5, "Input DFFs", size=24, bold=True, font=HEAD)
+text(s, MX + 0.3, 2.45, 3.3, 0.4, "load, load_sel, load_data", size=14, bold=True, font=MONO)
+text(s, MX + 0.3, 3.05, 3.3, 1.5,
+     "Five registers: an address and four words. One value is stored per clock edge where load = 1.",
      size=16)
-box(s, MX + 4.04, 1.6, 3.82, 3.0, fill=AMBER_F)
-text(s, MX + 4.34, 1.8, 3.3, 0.5, "Full", size=24, bold=True, font=HEAD)
-text(s, MX + 4.34, 2.45, 3.3, 0.4, "in_ready = 0", size=18, bold=True, font=MONO)
+box(s, MX + 4.04, 1.6, 3.82, 3.0, fill=BLUE_F)
+text(s, MX + 4.34, 1.8, 3.3, 0.5, "Master", size=24, bold=True, font=HEAD)
+text(s, MX + 4.34, 2.45, 3.3, 0.4, "start, done", size=14, bold=True, font=MONO)
 text(s, MX + 4.34, 3.05, 3.3, 1.5,
-     "The beat is offered on out_valid until the next side takes it. The sender waits.", size=16)
-box(s, MX + 8.08, 1.6, 3.82, 3.0, fill=BLUE_F)
-text(s, MX + 8.38, 1.8, 3.3, 0.5, "Taken", size=24, bold=True, font=HEAD)
-text(s, MX + 8.38, 2.45, 3.3, 0.4, "out_ready = 1", size=18, bold=True, font=MONO)
-text(s, MX + 8.38, 3.05, 3.3, 1.5, "The next side has taken the beat. The stage is empty again.", size=16)
+     "Reads the values straight from the input DFFs, writes them, reads them back.", size=16)
+box(s, MX + 8.08, 1.6, 3.82, 3.0, fill=AMBER_F)
+text(s, MX + 8.38, 1.8, 3.3, 0.5, "Output DFFs", size=24, bold=True, font=HEAD)
+text(s, MX + 8.38, 2.45, 3.3, 0.4, "rd_valid, rd_idx, rd_data", size=14, bold=True, font=MONO)
+text(s, MX + 8.38, 3.05, 3.3, 1.5,
+     "Four registers. Each read beat is stored in its own register as it arrives.", size=16)
 box(s, MX, 4.85, 5.85, 1.8, fill=WHITE)
-text(s, MX + 0.3, 5.0, 5.3, 0.4, "Why not a bare flip-flop?", size=18, bold=True, font=HEAD)
+text(s, MX + 0.3, 5.0, 5.3, 0.4, "How pass is made", size=18, bold=True, font=HEAD)
 text(s, MX + 0.3, 5.5, 5.3, 1.1,
-     "READY would arrive a cycle late, and the sender could send the same beat twice. "
-     "Here in_ready comes straight from a flip-flop, so that cannot happen.", size=15)
+     "pass = done and the four output registers equal the four input registers.", size=15)
 box(s, MX + 6.05, 4.85, 5.85, 1.8, fill=WHITE)
-text(s, MX + 6.35, 5.0, 5.3, 0.4, "What it costs", size=18, bold=True, font=HEAD)
+text(s, MX + 6.35, 5.0, 5.3, 0.4, "Direct connection", size=18, bold=True, font=HEAD)
 text(s, MX + 6.35, 5.5, 5.3, 1.1,
-     "A beat sits in a stage for a clock, so one beat moves every two clocks. "
-     "Correct and simple, but half rate.", size=15)
+     "Nothing sits between the master and the slave, so a beat moves every clock "
+     "the receiver is ready.", size=15)
 footer(s)
 
 # =========================================================================
@@ -456,22 +464,21 @@ footer(s)
 # =========================================================================
 # 10  One sequence end to end
 # =========================================================================
-s = new_slide(LIGHT, "The whole sequence, with the real cycle numbers from the simulation. The master "
-              "puts the write address out and it is taken at cycle 1 and reaches the slave at cycle 3, "
-              "because it crosses two stages. The four data beats are taken at cycles 2, 4, 6 and 8: "
-              "one every two clocks. The response comes back through two stages and is taken at "
-              "cycle 13. Then the master reads the four words back: the address is taken one cycle "
-              "after, the four beats arrive every two clocks, and done goes high. The whole sequence "
-              "takes 27 clock cycles from reset.")
+s = new_slide(LIGHT, "The whole sequence, with the real cycle numbers from the simulation. Cycle 0 is the "
+              "first cycle with start high. The write address is taken at cycle 1: the slave was "
+              "already ready, so there is no wait. The four data beats are taken at cycles 2, 3, 4 and "
+              "5, one every clock, and WLAST is on the fourth. The response is taken at cycle 6. The "
+              "read address is taken at cycle 7, the four beats arrive at cycles 8 to 11, and done "
+              "goes high at cycle 12. That is 13 clock cycles from start.")
 title(s, "One sequence, end to end")
-text(s, MX, 1.4, 11.9, 0.5, "The master writes four words to 0x10, then reads them back.",
+text(s, MX, 1.4, 11.9, 0.5, "The master writes four words, then reads them back.",
      size=20, color=MUTED)
 steps10 = [
-    ("1  Write address", BLUE_F, "AW taken at cycle 1. It reaches the slave at cycle 3."),
-    ("2  Write data", BLUE_F, "Four beats taken at cycles 2, 4, 6, 8. WLAST on the fourth."),
-    ("3  Response", VIOLET_F, "B comes back through two stages and is taken at cycle 13."),
-    ("4  Read", GREEN_F, "AR, then four beats every two clocks. RLAST on the fourth."),
-    ("5  Done", AMBER_F, "done = 1, pass = 1. The whole sequence took 27 cycles."),
+    ("1  Write address", BLUE_F, "AW taken at cycle 1. The slave is ready, so no wait."),
+    ("2  Write data", BLUE_F, "Four beats taken at cycles 2, 3, 4, 5. WLAST on the fourth."),
+    ("3  Response", VIOLET_F, "B taken at cycle 6, right after the last beat."),
+    ("4  Read", GREEN_F, "AR taken at cycle 7, then four beats at cycles 8 to 11. RLAST on the fourth."),
+    ("5  Done", AMBER_F, "done = 1 at cycle 12, pass = 1. 13 cycles from start."),
 ]
 bw, gap = 2.18, 0.25
 x = MX
@@ -490,19 +497,19 @@ footer(s)
 # 11  Write waveform
 # =========================================================================
 s = new_slide(LIGHT, "This waveform was recorded from our simulation. Amber dots are handshakes. The "
-              "master raises AWVALID at cycle 1 and the master-side stage takes it straight away. At "
-              "cycle 3 the address reaches the slave, one stage later. The four data beats are taken "
-              "at cycles 2, 4, 6 and 8: WREADY goes high every other cycle, because a stage can only "
-              "hold one beat at a time. WLAST rides on the fourth. The response is taken at cycle 13 "
-              "after crossing two stages on the way back.")
+              "master raises AWVALID at cycle 1 and AWREADY is already high, so the address is taken "
+              "at once. The four data beats are taken at cycles 2, 3, 4 and 5: WREADY stays high, so "
+              "one beat moves every clock. WLAST is high on the fourth. BVALID comes at cycle 6 and "
+              "BREADY is already high, so the response is taken immediately.")
 title(s, "Write: four words, recorded from the simulation")
-picture(s, os.path.join(HERE, "axi4_waveform_write.png"), MX, 1.45, w=11.9,
-        alt="Waveform of the master writing four words through the flip-flop stages.")
+pw = 4.3 * 1944 / 846
+picture(s, os.path.join(HERE, "axi4_waveform_write.png"), (W - pw) / 2, 1.45, h=4.3,
+        alt="Waveform of the master writing four words straight to the slave.")
 cal = [
     ("Amber dots", "are handshakes."),
-    ("Address", "taken at 1, reaches the slave at 3: two stages."),
-    ("Data beats", "taken at 2, 4, 6, 8: one every two clocks."),
-    ("Response", "taken at 13, after two stages back."),
+    ("Address", "taken at 1: the slave was already ready."),
+    ("Data beats", "taken at 2, 3, 4, 5: one every clock."),
+    ("Response", "taken at 6, right after WLAST."),
 ]
 cw = (W - 2 * MX - 3 * 0.2) / 4
 x = MX
@@ -516,23 +523,26 @@ footer(s)
 # =========================================================================
 # 12  Read waveform
 # =========================================================================
-s = new_slide(LIGHT, "Same address read back. The read address is taken at cycle 1 of this window and "
-              "reaches the slave at cycle 3. The four beats come back at cycles 6, 8, 10 and 12, again "
-              "one every two clocks, with RLAST on the fourth. Then done goes high. The master "
-              "compares what it read with what it wrote and sets pass.")
+s = new_slide(LIGHT, "Same four words read back. The read address is taken at cycle 1 of this window, "
+              "which is cycle 7 of the whole run. The four beats come back at cycles 2, 3, 4 and 5 of "
+              "the window, one every clock, with RLAST on the fourth. Then done goes high at cycle 6. "
+              "Each beat is stored in the output D flip-flops as it arrives, and pass says they equal "
+              "what was written.")
 title(s, "Read: the same four words, from the simulation")
-picture(s, os.path.join(HERE, "axi4_waveform_read.png"), MX, 1.6, w=11.9,
-        alt="Waveform of the master reading four words back through the flip-flop stages.")
+pw = 3.8 * 1944 / 750
+picture(s, os.path.join(HERE, "axi4_waveform_read.png"), (W - pw) / 2, 1.6, h=3.8,
+        alt="Waveform of the master reading four words back from the slave.")
 cal = [
-    ("Address", "taken at 1, reaches the slave at 3."),
-    ("Data beats", "taken at 6, 8, 10, 12: one every two clocks."),
-    ("RLAST", "rides on the fourth beat, at cycle 12."),
-    ("done", "goes high at 13. The sequence took 27 cycles."),
+    ("Address", "taken at 1: the slave was already ready."),
+    ("Data beats", "taken at 2, 3, 4, 5: one every clock."),
+    ("RLAST", "rides on the fourth beat, at cycle 5."),
+    ("done", "goes high at 6. The sequence took 13 cycles."),
 ]
+cw = (W - 2 * MX - 3 * 0.2) / 4
 x = MX
 for hd, bd in cal:
-    box(s, x, 5.5, cw, 1.2, fill=WHITE)
-    text(s, x + 0.2, 5.62, cw - 0.4, 1.0, [{"text": hd, "bold": True, "size": 15, "after": 2},
+    box(s, x, 5.55, cw, 1.2, fill=WHITE)
+    text(s, x + 0.2, 5.67, cw - 0.4, 1.0, [{"text": hd, "bold": True, "size": 15, "after": 2},
                                            {"text": bd, "size": 14, "color": MUTED}])
     x += cw + 0.2
 footer(s)
@@ -543,38 +553,39 @@ footer(s)
 s = new_slide(LIGHT, "We test two things. First the slave on its own: the testbench plays the master "
               "and drives each channel by hand, so it can force awkward cases such as data before "
               "address, held-off responses, byte strobes, the longest burst of 256 beats, and a "
-              "reset in the middle of a burst. Second the whole system, where the master runs by "
-              "itself: the testbench only supplies clock and reset, then checks that it finishes, "
-              "passes, that the four words really are in the slave's memory, that every response "
-              "is OKAY with the right ID, and that VALID and the payload hold steady until READY. "
-              "It also resets mid-sequence and checks it runs again.")
+              "reset in the middle of a burst. Second the whole system: the testbench loads the "
+              "input flip-flops, raises start, and checks that the master finishes, that pass is set, "
+              "that the output flip-flops and the slave's memory hold the four words, that every "
+              "response is OKAY with the right ID, and that VALID and the payload hold steady until "
+              "READY. It also runs a second set of values at another address, and resets "
+              "mid-sequence.")
 title(s, "How it was verified")
 card_row(s, 1.55, 4.4, [
     (BLUE_F, "Slave on its own", "tb_axi4_slave.v",
      "The testbench plays the master. 33 checks: single and multi-beat bursts, data first or address first, "
      "held-off responses, byte strobes, ID echo, 256 beats, reset mid-burst."),
     (GREEN_F, "Whole system", "tb_axi4_top.v",
-     "The master runs by itself. 13 checks: it finishes and passes, the words are in memory, "
-     "responses are OKAY, VALID and data hold steady, reset mid-sequence then runs again."),
+     "Input DFFs, master, slave, output DFFs. 43 checks: idle until start, words in memory and in the "
+     "output DFFs, pass, OKAY responses, VALID holds, a second run with other values, reset mid-sequence."),
 ], 2, body_size=15)
 box(s, MX, 6.15, 11.9, 0.62, fill=AMBER_F)
-text(s, MX + 0.3, 6.15, 11.3, 0.62, "Total: 33 + 13 = 46 checks, 0 failing.   Run it:  .\\run_tests.ps1",
+text(s, MX + 0.3, 6.15, 11.3, 0.62, "Total: 33 + 43 = 76 checks, 0 failing.   Run it:  .\\run_tests.ps1",
      size=17, bold=True, anchor=MSO_ANCHOR.MIDDLE)
 footer(s)
 
 # =========================================================================
 # 14  Limits
 # =========================================================================
-s = new_slide(LIGHT, "Say these before you are asked. The throughput is half rate: one beat every two "
-              "clocks, because each stage holds one beat. The master's data is fixed in its "
-              "registers; changing it means editing the file. Only counting-up bursts, so no FIXED or "
-              "WRAP and no narrow beats. Every response is OKAY and an out-of-range address wraps. "
-              "One burst at a time. And the lock, cache, protection and QoS signals are not "
+s = new_slide(LIGHT, "Say these before you are asked. The burst shape is fixed: the master always writes "
+              "and reads four words with all bytes enabled. The input flip-flops must not change "
+              "while a sequence runs, because the master reads them live. Only counting-up bursts, so "
+              "no FIXED or WRAP and no narrow beats. Every response is OKAY and an out-of-range address "
+              "wraps. One burst at a time. And the lock, cache, protection and QoS signals are not "
               "included.")
 title(s, "Limits, stated plainly")
 lims = [
-    ("Half rate", "One beat every two clocks, because each stage holds one beat at a time."),
-    ("Fixed data", "The master sends four built-in words to 0x10. Changing them means editing the file."),
+    ("Fixed burst shape", "The master always writes and reads four words, with all four bytes enabled."),
+    ("Load, then start", "The input DFFs must not change while a sequence runs. The master reads them live."),
     ("Counting-up bursts only", "No FIXED or WRAP bursts and no narrow beats. The address adds 4 per beat."),
     ("Always OKAY", "No error responses. An address beyond the 4 KiB wraps inside the memory."),
     ("One burst at a time", "One write or one read in progress. IDs are echoed, never used to reorder."),
@@ -594,10 +605,10 @@ footer(s)
 # =========================================================================
 s = new_slide(NAVY, "Live demo, about two minutes. Open PowerShell in E:\\FPGA_Project and run "
               ".\\run_tests.ps1. It compiles and runs two suites. Point at the two TEST PASSED lines "
-              "and the check counts, 33 and 13, and the line that says the whole sequence took 27 "
+              "and the check counts, 33 and 43, and the line that says the whole sequence took 13 "
               "clock cycles. Then run the top suite with -Wave to open the waveform in GTKWave and "
-              "show the same shape as the recorded slides: the handshakes and the WREADY going high "
-              "every other cycle. If the live run fails for any reason, slides 11 and 12 are "
+              "show the same shape as the recorded slides: the handshakes, with WREADY high so a "
+              "beat moves every clock. If the live run fails for any reason, slides 11 and 12 are "
               "recorded from this exact simulation.")
 title(s, "Live demo", dark=True)
 box(s, MX, 1.6, 7.4, 3.0, fill="0F1726")
@@ -608,8 +619,8 @@ text(s, MX + 0.4, 1.85, 6.8, 2.6, [
 text(s, MX + 8.0, 1.6, 3.9, 0.4, "What to point at", size=20, bold=True, color=AMBER, font=HEAD)
 text(s, MX + 8.0, 2.15, 3.9, 3.0, [
     {"text": "Two suites, each ending TEST PASSED", "after": 10},
-    {"text": "Check counts: 33 and 13", "after": 10},
-    {"text": "\"the whole sequence took 27 clock cycles\"", "after": 0}],
+    {"text": "Check counts: 33 and 43", "after": 10},
+    {"text": "\"the whole sequence took 13 clock cycles\"", "after": 0}],
      size=16, color=ON_DARK)
 box(s, MX, 5.0, 11.9, 1.5, fill="22304A")
 text(s, MX + 0.4, 5.2, 11.1, 1.2, [
@@ -622,19 +633,19 @@ footer(s, dark=True)
 # 16  Questions
 # =========================================================================
 s = new_slide(LIGHT, "Likely questions with short answers. Why five channels: address, data and "
-              "response move independently. Why not a bare flip-flop: READY arrives late and a beat "
-              "could be sent twice; the stage reports full from a flip-flop. What does it cost: one "
-              "beat every two clocks. Where does the data come from: D flip-flop registers inside "
-              "the master. How do we know it worked: it reads back and compares, and the testbench "
+              "response move independently. Is there an interconnect: no, one master and one slave "
+              "are wired directly. Where does the data come from: the input D flip-flops, loaded by "
+              "the testbench. Where does the read data go: the output D flip-flops, one register per "
+              "beat. How do we know it worked: the master's pass compares them, and the testbench "
               "checks the slave's memory. How does the slave know the burst ended: WLAST on writes, "
               "a beat count on reads.")
 title(s, "Questions we expect")
 qa = [
     ("Why five channels?", "Address, data and response move independently, so a slow response never blocks the next address."),
-    ("Why not a bare flip-flop?", "READY would arrive late and a beat could be sent twice. The stage reports full from a flip-flop."),
-    ("What does the stage cost?", "One beat moves every two clocks, because a stage holds one beat at a time."),
-    ("Where does the data come from?", "D flip-flop registers inside the master, set at reset and sent beat by beat."),
-    ("How do we know it worked?", "The master reads the words back and compares. The testbench also checks the slave's memory."),
+    ("Is there an interconnect?", "No. One master and one slave are wired directly. An interconnect is for more of either."),
+    ("Where does the data come from?", "From the input D flip-flops, loaded by the testbench. The master reads them and writes to the slave."),
+    ("Where does the read data go?", "Into the output D flip-flops, one register per beat. pass compares them with the input."),
+    ("How do we know it worked?", "pass compares read-back with what was written. The testbench also checks the slave's memory."),
     ("How does the slave know the end?", "On writes, from WLAST. On reads, by counting ARLEN + 1 beats."),
 ]
 for i, (q, a) in enumerate(qa):
@@ -645,6 +656,7 @@ for i, (q, a) in enumerate(qa):
     text(s, x + 0.3, y + 0.17, 5.3, 0.4, q, size=17, bold=True, font=HEAD)
     text(s, x + 0.3, y + 0.66, 5.3, 0.85, a, size=15, color=MUTED)
 footer(s)
+
 
 prs.save(OUT)
 print("saved", OUT, "slides:", len(prs.slides))
