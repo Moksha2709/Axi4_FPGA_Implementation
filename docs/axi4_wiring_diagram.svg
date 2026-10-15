@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 700" width="2320" height="1400" role="img" aria-label="Wiring diagram. The testbench drives load, load_sel and load_data into the input D flip-flops and start into the master. The input flip-flops send the address and four data words to the master. The master and the slave are joined directly by the five AXI4 channels AW, W, B, AR and R. The master sends each read beat (rd_valid, rd_idx, rd_data) to the output D flip-flops. A compare block takes done, the four loaded words and the four read-back words and produces pass. The testbench reads done, pass and the four read-back words.">
+<style>
+text{fill:#1E2A3B;font-family:'Segoe UI','Nunito',Arial,sans-serif}
+.t{font-size:16px;font-weight:700}
+.s{font-size:12.5px;fill:#4F5F74}
+.m{font-size:12px;font-family:Consolas,'Cascadia Mono',monospace;fill:#4F5F74}
+.sg{font-size:12px;font-family:Consolas,'Cascadia Mono',monospace;fill:#1E2A3B}
+.sgb{font-size:12px;font-weight:700;font-family:Consolas,'Cascadia Mono',monospace;fill:#8F5C00}
+.w{stroke:#34445A;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.bus{stroke:#C98A00;stroke-width:4.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ctl{stroke:#3B6FD0;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.dot{fill:#3B6FD0}
+</style>
+<defs>
+  <marker id="a1" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 z" fill="#34445A"/></marker>
+  <marker id="a2" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 z" fill="#C98A00"/></marker>
+  <marker id="a3" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 z" fill="#3B6FD0"/></marker>
+</defs>
+<rect width="1160" height="700" fill="#F5F7FA"/>
+
+<!-- ============ blocks ============ -->
+<!-- testbench -->
+<rect x="20" y="70" width="140" height="580" rx="14" fill="#E8ECF2" stroke="#8A97A8" stroke-width="2"/>
+<text class="t" x="90" y="98" text-anchor="middle">Testbench</text>
+<text class="m" x="90" y="116" text-anchor="middle">tb_axi4_top.v</text>
+<text class="s" x="90" y="290" text-anchor="middle">loads the values</text>
+<text class="s" x="90" y="310" text-anchor="middle">raises start</text>
+<text class="s" x="90" y="330" text-anchor="middle">looks at the</text>
+<text class="s" x="90" y="350" text-anchor="middle">results</text>
+
+<!-- input DFFs -->
+<rect x="250" y="70" width="170" height="250" rx="14" fill="#FFE9A8" stroke="#C98A00" stroke-width="2"/>
+<text class="t" x="335" y="98" text-anchor="middle">Input DFFs</text>
+<text class="m" x="335" y="116" text-anchor="middle">axi4_in_dff.v</text>
+<text class="s" x="335" y="215" text-anchor="middle">addr</text>
+<text class="s" x="335" y="237" text-anchor="middle">data0   data1</text>
+<text class="s" x="335" y="259" text-anchor="middle">data2   data3</text>
+<text class="s" x="335" y="296" text-anchor="middle">5 registers of 32 bits</text>
+
+<!-- master -->
+<rect x="540" y="70" width="180" height="330" rx="14" fill="#D6E6FF" stroke="#3B6FD0" stroke-width="2"/>
+<text class="t" x="630" y="98" text-anchor="middle">Master</text>
+<text class="m" x="630" y="116" text-anchor="middle">axi4_master.v</text>
+<text class="s" x="630" y="190" text-anchor="middle">state machine</text>
+<text class="m" x="630" y="212" text-anchor="middle">IDLE AW W B</text>
+<text class="m" x="630" y="230" text-anchor="middle">AR R DONE</text>
+<text class="s" x="630" y="280" text-anchor="middle">holds no data</text>
+
+<!-- slave -->
+<rect x="940" y="70" width="180" height="330" rx="14" fill="#E6DEFA" stroke="#7152C9" stroke-width="2"/>
+<text class="t" x="1030" y="98" text-anchor="middle">Slave</text>
+<text class="m" x="1030" y="116" text-anchor="middle">axi4_slave.v</text>
+<text class="s" x="1030" y="190" text-anchor="middle">write engine</text>
+<text class="s" x="1030" y="210" text-anchor="middle">read engine</text>
+<rect x="975" y="250" width="110" height="110" rx="10" fill="#D9F0E3" stroke="#2E8B57" stroke-width="2"/>
+<text class="t" x="1030" y="300" text-anchor="middle">4 KiB</text>
+<text class="s" x="1030" y="320" text-anchor="middle">memory</text>
+
+<!-- output DFFs -->
+<rect x="540" y="500" width="180" height="150" rx="14" fill="#FFE9A8" stroke="#C98A00" stroke-width="2"/>
+<text class="t" x="630" y="528" text-anchor="middle">Output DFFs</text>
+<text class="m" x="630" y="546" text-anchor="middle">axi4_out_dff.v</text>
+<text class="s" x="630" y="590" text-anchor="middle">rd0   rd1</text>
+<text class="s" x="630" y="612" text-anchor="middle">rd2   rd3</text>
+<text class="s" x="630" y="637" text-anchor="middle">4 registers of 32 bits</text>
+
+<!-- pass compare -->
+<rect x="250" y="500" width="170" height="150" rx="14" fill="#D9F0E3" stroke="#2E8B57" stroke-width="2"/>
+<text class="t" x="335" y="528" text-anchor="middle">Compare</text>
+<text class="m" x="335" y="546" text-anchor="middle">in axi4_top.v</text>
+<text class="s" x="335" y="585" text-anchor="middle">pass = done and</text>
+<text class="s" x="335" y="605" text-anchor="middle">rd0..3 = data0..3</text>
+
+<!-- ============ testbench -> input DFFs ============ -->
+<line class="ctl" x1="160" y1="140" x2="248" y2="140" marker-end="url(#a3)"/>
+<text class="sg" x="204" y="132" text-anchor="middle">load</text>
+<line class="ctl" x1="160" y1="190" x2="248" y2="190" marker-end="url(#a3)"/>
+<text class="sg" x="204" y="182" text-anchor="middle">load_sel</text>
+<text class="s" x="204" y="206" text-anchor="middle">3 bits</text>
+<line class="bus" x1="160" y1="250" x2="246" y2="250" marker-end="url(#a2)"/>
+<text class="sg" x="204" y="240" text-anchor="middle">load_data</text>
+<text class="s" x="204" y="272" text-anchor="middle">32 bits</text>
+
+<!-- ============ input DFFs -> master ============ -->
+<line class="bus" x1="420" y1="200" x2="536" y2="200" marker-end="url(#a2)"/>
+<text class="sgb" x="480" y="168" text-anchor="middle">addr</text>
+<text class="sgb" x="480" y="184" text-anchor="middle">data0..3</text>
+<text class="s" x="480" y="226" text-anchor="middle">5 x 32 bits</text>
+
+<!-- ============ master <-> slave : five channels ============ -->
+<line class="w" x1="720" y1="120" x2="936" y2="120" marker-end="url(#a1)"/>
+<text class="sg" x="828" y="97" text-anchor="middle">AWID AWADDR AWLEN</text>
+<text class="sg" x="828" y="111" text-anchor="middle">AWVALID  AWREADY</text>
+<line class="w" x1="720" y1="185" x2="936" y2="185" marker-end="url(#a1)"/>
+<text class="sg" x="828" y="162" text-anchor="middle">WDATA WSTRB WLAST</text>
+<text class="sg" x="828" y="176" text-anchor="middle">WVALID  WREADY</text>
+<line class="w" x1="936" y1="250" x2="724" y2="250" marker-end="url(#a1)"/>
+<text class="sg" x="828" y="227" text-anchor="middle">BID BRESP</text>
+<text class="sg" x="828" y="241" text-anchor="middle">BVALID  BREADY</text>
+<line class="w" x1="720" y1="315" x2="936" y2="315" marker-end="url(#a1)"/>
+<text class="sg" x="828" y="292" text-anchor="middle">ARID ARADDR ARLEN</text>
+<text class="sg" x="828" y="306" text-anchor="middle">ARVALID  ARREADY</text>
+<line class="w" x1="936" y1="380" x2="724" y2="380" marker-end="url(#a1)"/>
+<text class="sg" x="828" y="357" text-anchor="middle">RID RDATA RRESP RLAST</text>
+<text class="sg" x="828" y="371" text-anchor="middle">RVALID  RREADY</text>
+<text class="t" x="828" y="62" text-anchor="middle">the five AXI4 channels</text>
+<text class="s" x="828" y="415" text-anchor="middle">wired directly, nothing in between</text>
+
+<!-- ============ start / done along the top ============ -->
+<path class="ctl" d="M60 70 L60 26 L690 26 L690 68" marker-end="url(#a3)"/>
+<text class="sg" x="375" y="20" text-anchor="middle">start</text>
+<path class="ctl" d="M590 68 L590 46 L130 46 L130 68" marker-end="url(#a3)" transform="translate(0,0)"/>
+<text class="sg" x="375" y="62" text-anchor="middle">done</text>
+<!-- the arrowhead of start points down into the master; done's points into the testbench -->
+
+<!-- ============ master -> output DFFs ============ -->
+<line class="bus" x1="630" y1="400" x2="630" y2="496" marker-end="url(#a2)"/>
+<text class="sgb" x="644" y="438">rd_valid  (1 bit)</text>
+<text class="sgb" x="644" y="454">rd_idx    (2 bits)</text>
+<text class="sgb" x="644" y="470">rd_data   (32 bits)</text>
+
+<!-- ============ master done -> compare ============ -->
+<path class="ctl" d="M540 370 L395 370 L395 498" marker-end="url(#a3)"/>
+<text class="sg" x="468" y="362" text-anchor="middle">done</text>
+
+<!-- ============ input DFFs -> compare ============ -->
+<line class="bus" x1="300" y1="320" x2="300" y2="496" marker-end="url(#a2)"/>
+<text class="sgb" x="290" y="410" text-anchor="end">data0..3</text>
+
+<!-- ============ output DFFs -> compare ============ -->
+<line class="bus" x1="540" y1="580" x2="424" y2="580" marker-end="url(#a2)"/>
+<text class="sgb" x="482" y="570" text-anchor="middle">rd0..3</text>
+
+<!-- ============ compare -> testbench : pass ============ -->
+<line class="ctl" x1="250" y1="575" x2="162" y2="575" marker-end="url(#a3)"/>
+<text class="sg" x="206" y="567" text-anchor="middle">pass</text>
+
+<!-- ============ output DFFs -> testbench : rd0..3 ============ -->
+<path class="bus" d="M630 650 L630 682 L90 682 L90 654" marker-end="url(#a2)"/>
+<text class="sgb" x="360" y="674" text-anchor="middle">rd0..3  (4 x 32 bits)</text>
+
+<!-- ============ legend ============ -->
+<rect x="790" y="470" width="340" height="180" rx="12" fill="#FFFFFF" stroke="#8A97A8" stroke-width="1.4" stroke-dasharray="4 3"/>
+<text class="t" x="810" y="498">How to read it</text>
+<line class="bus" x1="810" y1="522" x2="860" y2="522" marker-end="url(#a2)"/>
+<text class="s" x="872" y="526">a bundle of 32-bit values</text>
+<line class="ctl" x1="810" y1="552" x2="860" y2="552" marker-end="url(#a3)"/>
+<text class="s" x="872" y="556">a control signal</text>
+<line class="w" x1="810" y1="582" x2="860" y2="582" marker-end="url(#a1)"/>
+<text class="s" x="872" y="586">an AXI4 channel</text>
+<text class="s" x="810" y="618">clk and resetn go to every block</text>
+<text class="s" x="810" y="636">(not drawn, to keep the picture clear)</text>
+</svg>
