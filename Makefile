@@ -2,7 +2,7 @@
 # AXI4 design -- simulation build (Icarus Verilog)
 #
 #   make test_slave   the slave on its own, driven by the testbench
-#   make test_top     master + D flip-flop stages + slave (master runs by itself)
+#   make test_top     input DFFs -> master -> slave -> output DFFs
 #   make test_all     both; non-zero exit if either fails
 #   make clean        remove build output
 #==============================================================================
@@ -27,7 +27,7 @@ test_slave: | $(BUILD_DIR)
 
 test_top: | $(BUILD_DIR)
 	$(IVERILOG) $(IVFLAGS) -o $(BUILD_DIR)/tb_axi4_top.vvp \
-		rtl/axi4_reg_stage.v rtl/axi4_slave.v rtl/axi4_master.v rtl/axi4_top.v \
+		rtl/axi4_in_dff.v rtl/axi4_out_dff.v rtl/axi4_slave.v rtl/axi4_master.v rtl/axi4_top.v \
 		sim/tb_axi4_top.v
 	cd $(BUILD_DIR) && $(VVP) tb_axi4_top.vvp | tee tb_axi4_top.log
 	@! grep -q "TEST FAILED" $(BUILD_DIR)/tb_axi4_top.log

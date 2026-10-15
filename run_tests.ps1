@@ -4,7 +4,7 @@
 
 .DESCRIPTION
       slave : the slave on its own, driven channel by channel by the testbench
-      top   : master + D flip-flop stages + slave; the master runs by itself
+      top   : input DFFs -> master -> slave -> output DFFs
     Logs and waveforms go to .\build.  Exits with 1 if anything fails.
 
 .EXAMPLE
@@ -33,11 +33,12 @@ $suites = @{
         Label   = 'the slave on its own'
     }
     'top' = @{
-        Sources = @((Join-Path $rtl 'axi4_reg_stage.v'), (Join-Path $rtl 'axi4_slave.v'),
-                    (Join-Path $rtl 'axi4_master.v'),    (Join-Path $rtl 'axi4_top.v'),
+        Sources = @((Join-Path $rtl 'axi4_in_dff.v'),  (Join-Path $rtl 'axi4_out_dff.v'),
+                    (Join-Path $rtl 'axi4_slave.v'),   (Join-Path $rtl 'axi4_master.v'),
+                    (Join-Path $rtl 'axi4_top.v'),
                     (Join-Path $sim 'tb_axi4_top.v'))
         Out     = 'tb_axi4_top'
-        Label   = 'master + D flip-flop stages + slave'
+        Label   = 'input DFFs -> master -> slave -> output DFFs'
     }
 }
 

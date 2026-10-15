@@ -1,26 +1,64 @@
 ﻿VCD info: dumpfile tb_axi4_top.vcd opened for output.
 
-==== tb_axi4_top : master + D flip-flop stages + slave ====
+==== tb_axi4_top : in DFF -> master -> slave -> out DFF ====
 
--- the master writes four words, reads them back, compares
+-- nothing happens until start is raised
+  [ ok ] idle: done is 0
+  [ ok ] idle: no write address
+  [ ok ] idle: no read address
+
+-- load the input flip-flops
+  [ ok ] input DFF addr = 0x00000010
+  [ ok ] input DFF data0 = 0xa5a50001
+  [ ok ] input DFF data3 = 0x0badf00d
+
+-- start: write four words, read them back
   [ ok ] master finished (done)
   [ ok ] data read back matches (pass)
-  the whole sequence took 27 clock cycles
+  the whole sequence took 13 clock cycles
+  [ ok ] output DFF rd0 = 0xa5a50001
+  [ ok ] output DFF rd1 = 0x5a5a0002
+  [ ok ] output DFF rd2 = 0xdeadbeef
+  [ ok ] output DFF rd3 = 0x0badf00d
   [ ok ] memory[0x10] = 0xa5a50001
   [ ok ] memory[0x14] = 0x5a5a0002
   [ ok ] memory[0x18] = 0xdeadbeef
   [ ok ] memory[0x1C] = 0x0badf00d
+  [ ok ] pass drops when a loaded word differs
+  [ ok ] done clears when start is released
 
--- reset in the middle of the sequence, then it runs again
+-- second run: a different address and different words
+  [ ok ] finished again (done)
+  [ ok ] passes again (pass)
+  [ ok ] output DFF rd0 = 0x11111111
+  [ ok ] output DFF rd1 = 0x22222222
+  [ ok ] output DFF rd2 = 0x33333333
+  [ ok ] output DFF rd3 = 0x44444444
+  [ ok ] memory[0x40] = 0x11111111
+  [ ok ] memory[0x44] = 0x22222222
+  [ ok ] memory[0x48] = 0x33333333
+  [ ok ] memory[0x4C] = 0x44444444
+  [ ok ] memory[0x10] untouched = 0xa5a50001
+
+-- reset in the middle of a sequence
   [ ok ] not done yet, mid-sequence
-  [ ok ] finished again after the reset
-  [ ok ] passes again after the reset
-  [ ok ] memory[0x10] = 0xa5a50001
-  [ ok ] memory[0x14] = 0x5a5a0002
-  [ ok ] memory[0x18] = 0xdeadbeef
-  [ ok ] memory[0x1C] = 0x0badf00d
+  [ ok ] reset cleared input DFF addr = 0x00000000
+  [ ok ] reset cleared input DFF data0 = 0x00000000
+  [ ok ] reset cleared output DFF rd0 = 0x00000000
+  [ ok ] reset: done is 0
+  [ ok ] reset: master is idle
 
-==== result : 13 checks, 0 failure(s) ====
+-- reload and run again after the reset
+  [ ok ] finished after the reset (done)
+  [ ok ] passes after the reset (pass)
+  [ ok ] output DFF rd0 = 0x0000000a
+  [ ok ] output DFF rd1 = 0x0000000b
+  [ ok ] output DFF rd2 = 0x0000000c
+  [ ok ] output DFF rd3 = 0x0000000d
+  [ ok ] memory[0x20] = 0x0000000a
+  [ ok ] memory[0x2C] = 0x0000000d
+
+==== result : 43 checks, 0 failure(s) ====
 TEST PASSED
 
-E:\FPGA_Project\sim\tb_axi4_top.v:170: $finish called at 825000 (1ps)
+E:\FPGA_Project\sim\tb_axi4_top.v:277: $finish called at 1285000 (1ps)

@@ -1,17 +1,25 @@
 //=============================================================================
-// tb_axi4_top.v  --  the whole system: master, D flip-flop stages, slave
+// tb_axi4_top.v  --  the whole system:  in DFF -> master -> slave -> out DFF
 //
-// There is nothing to drive.  The master starts the transactions itself, so
-// the testbench only supplies the clock and the reset, then watches.
+// The testbench plays the person at the switches:
+//   1. load an address and four words into the input flip-flops
+//   2. raise start
+//   3. wait for done, then look at the output flip-flops and the slave memory
 //
 // What it checks
-//   1  the master finishes (done) in a sensible time
-//   2  the master's own comparison says pass
-//   3  the four words really are in the slave's memory at 0x10..0x1C
-//   4  every B and R response is OKAY and carries the right ID
-//   5  the protocol rule: once VALID is high, VALID and the payload stay put
-//      until READY (checked on AW, W and AR, at the master)
-//   6  reset in the middle of the sequence, then it runs again and passes
+//   1  the master does nothing until start is raised
+//   2  the input flip-flops hold what was loaded
+//   3  the master finishes (done), pass is 1, the output flip-flops hold the
+//      four words that were written
+//   4  the four words really are in the slave's memory at the address loaded
+//   5  every B and R response is OKAY and carries the right ID
+//   6  the protocol rule: once VALID is high, VALID and the payload stay put
+//      until READY (checked on AW, W and AR)
+//   7  a second run with a different address and different words works
+//      (the data really comes from the flip-flops, not from inside the master)
+//   8  pass drops to 0 if the loaded words stop matching what was read back
+//   9  reset in the middle of the sequence clears the flip-flops, and after a
+//      reload the sequence runs again and passes
 //=============================================================================
 
 `timescale 1ns / 1ps
@@ -20,13 +28,23 @@ module tb_axi4_top;
 
     localparam CLK_PERIOD = 10;
 
-    reg  clk    = 1'b0;
-    reg  resetn = 1'b0;
-    wire done, pass;
+    reg         clk       = 1'b0;
+    reg         resetn    = 1'b0;
+    reg         load      = 1'b0;
+    reg  [2:0]  load_sel  = 3'd0;
+    reg  [31:0] load_data = 32'd0;
+    reg         start     = 1'b0;
+    wire        done, pass;
+    wire [31:0] rd0, rd1, rd2, rd3;
 
     always #(CLK_PERIOD/2) clk = ~clk;
 
-    axi4_top uut (.clk(clk), .resetn(resetn), .done(done), .pass(pass));
+    axi4_top uut (
+        .clk(clk), .resetn(resetn),
+        .load(load), .load_sel(load_sel), .load_data(load_data),
+        .start(start), .done(done), .pass(pass),
+        .rd0(rd0), .rd1(rd1), .rd2(rd2), .rd3(rd3)
+    );
 
     integer errors = 0;
     integer checks = 0;
@@ -60,18 +78,18 @@ module tb_axi4_top;
     endtask
 
     //-------------------------------------------------------------------------
-    // Always-on monitors on the master's own ports
+    // Always-on monitors on the wires between master and slave
     //-------------------------------------------------------------------------
     // Responses must be OKAY and carry the master's ID (1).
     always @(posedge clk) begin
         if (resetn) begin
-            if (uut.m_bvalid && uut.m_bready) begin
-                if (uut.m_bresp !== 2'b00) fail("BRESP is not OKAY");
-                if (uut.m_bid   !== 4'd1)  fail("BID is not the ID that was sent");
+            if (uut.bvalid && uut.bready) begin
+                if (uut.bresp !== 2'b00) fail("BRESP is not OKAY");
+                if (uut.bid   !== 4'd1)  fail("BID is not the ID that was sent");
             end
-            if (uut.m_rvalid && uut.m_rready) begin
-                if (uut.m_rresp !== 2'b00) fail("RRESP is not OKAY");
-                if (uut.m_rid   !== 4'd1)  fail("RID is not the ID that was sent");
+            if (uut.rvalid && uut.rready) begin
+                if (uut.rresp !== 2'b00) fail("RRESP is not OKAY");
+                if (uut.rid   !== 4'd1)  fail("RID is not the ID that was sent");
             end
         end
     end
@@ -85,28 +103,54 @@ module tb_axi4_top;
         if (!resetn) begin
             aw_pend <= 1'b0; w_pend <= 1'b0; ar_pend <= 1'b0;
         end else begin
-            if (aw_pend && (!uut.m_awvalid ||
-                            {uut.m_awid, uut.m_awaddr, uut.m_awlen} !== aw_hold))
+            if (aw_pend && (!uut.awvalid ||
+                            {uut.awid, uut.awaddr, uut.awlen} !== aw_hold))
                 fail("AW changed or dropped before AWREADY");
-            if (w_pend && (!uut.m_wvalid ||
-                           {uut.m_wdata, uut.m_wstrb, uut.m_wlast} !== w_hold))
+            if (w_pend && (!uut.wvalid ||
+                           {uut.wdata, uut.wstrb, uut.wlast} !== w_hold))
                 fail("W changed or dropped before WREADY");
-            if (ar_pend && (!uut.m_arvalid ||
-                            {uut.m_arid, uut.m_araddr, uut.m_arlen} !== ar_hold))
+            if (ar_pend && (!uut.arvalid ||
+                            {uut.arid, uut.araddr, uut.arlen} !== ar_hold))
                 fail("AR changed or dropped before ARREADY");
 
-            aw_pend <= uut.m_awvalid && !uut.m_awready;
-            w_pend  <= uut.m_wvalid  && !uut.m_wready;
-            ar_pend <= uut.m_arvalid && !uut.m_arready;
-            aw_hold <= {uut.m_awid, uut.m_awaddr, uut.m_awlen};
-            w_hold  <= {uut.m_wdata, uut.m_wstrb, uut.m_wlast};
-            ar_hold <= {uut.m_arid, uut.m_araddr, uut.m_arlen};
+            aw_pend <= uut.awvalid && !uut.awready;
+            w_pend  <= uut.wvalid  && !uut.wready;
+            ar_pend <= uut.arvalid && !uut.arready;
+            aw_hold <= {uut.awid, uut.awaddr, uut.awlen};
+            w_hold  <= {uut.wdata, uut.wstrb, uut.wlast};
+            ar_hold <= {uut.arid, uut.araddr, uut.arlen};
         end
     end
 
     //-------------------------------------------------------------------------
-    task wait_done(input integer limit);
+    // Helpers
+    //-------------------------------------------------------------------------
+    // store one value into one input flip-flop (one clock)
+    task load_reg(input [2:0] sel, input [31:0] value);
         begin
+            @(posedge clk);
+            #1 load = 1'b1; load_sel = sel; load_data = value;
+            @(posedge clk);
+            #1 load = 1'b0;
+        end
+    endtask
+
+    task load_all(input [31:0] a, input [31:0] w0, input [31:0] w1,
+                  input [31:0] w2, input [31:0] w3);
+        begin
+            load_reg(3'd0, a);
+            load_reg(3'd1, w0);
+            load_reg(3'd2, w1);
+            load_reg(3'd3, w2);
+            load_reg(3'd4, w3);
+        end
+    endtask
+
+    // raise start and wait for done (start stays high)
+    task run_start(input integer limit);
+        begin
+            @(posedge clk);
+            #1 start = 1'b1;
             cycles = 0;
             while (!done && cycles < limit) begin
                 @(posedge clk);
@@ -115,52 +159,115 @@ module tb_axi4_top;
         end
     endtask
 
-    task check_memory;
+    task release_start;
         begin
-            check32("memory[0x10]", uut.u_slave.mem[4], 32'hA5A5_0001);
-            check32("memory[0x14]", uut.u_slave.mem[5], 32'h5A5A_0002);
-            check32("memory[0x18]", uut.u_slave.mem[6], 32'hDEAD_BEEF);
-            check32("memory[0x1C]", uut.u_slave.mem[7], 32'h0BAD_F00D);
+            @(posedge clk);
+            #1 start = 1'b0;
+            repeat (2) @(posedge clk);
+        end
+    endtask
+
+    task check_readback(input [31:0] w0, input [31:0] w1,
+                        input [31:0] w2, input [31:0] w3);
+        begin
+            check32("output DFF rd0", rd0, w0);
+            check32("output DFF rd1", rd1, w1);
+            check32("output DFF rd2", rd2, w2);
+            check32("output DFF rd3", rd3, w3);
         end
     endtask
 
     //-------------------------------------------------------------------------
+    integer i;
     initial begin
         $dumpfile("tb_axi4_top.vcd");
         $dumpvars(0, tb_axi4_top);
 
-        $display("\n==== tb_axi4_top : master + D flip-flop stages + slave ====");
+        $display("\n==== tb_axi4_top : in DFF -> master -> slave -> out DFF ====");
 
         repeat (5) @(posedge clk);
         #1 resetn = 1'b1;
 
         //---------------------------------------------------------------------
-        $display("\n-- the master writes four words, reads them back, compares");
-        wait_done(2000);
+        $display("\n-- nothing happens until start is raised");
+        repeat (10) @(posedge clk);
+        check("idle: done is 0",          done === 1'b0);
+        check("idle: no write address",   uut.awvalid === 1'b0);
+        check("idle: no read address",    uut.arvalid === 1'b0);
+
+        //---------------------------------------------------------------------
+        $display("\n-- load the input flip-flops");
+        load_all(32'h0000_0010, 32'hA5A5_0001, 32'h5A5A_0002,
+                 32'hDEAD_BEEF, 32'h0BAD_F00D);
+        check32("input DFF addr",  uut.addr, 32'h0000_0010);
+        check32("input DFF data0", uut.d0,   32'hA5A5_0001);
+        check32("input DFF data3", uut.d3,   32'h0BAD_F00D);
+
+        //---------------------------------------------------------------------
+        $display("\n-- start: write four words, read them back");
+        run_start(2000);
         check("master finished (done)", done === 1'b1);
         check("data read back matches (pass)", pass === 1'b1);
         $display("  the whole sequence took %0d clock cycles", cycles);
-        check_memory;
+        check_readback(32'hA5A5_0001, 32'h5A5A_0002, 32'hDEAD_BEEF, 32'h0BAD_F00D);
+        check32("memory[0x10]", uut.u_slave.mem[4], 32'hA5A5_0001);
+        check32("memory[0x14]", uut.u_slave.mem[5], 32'h5A5A_0002);
+        check32("memory[0x18]", uut.u_slave.mem[6], 32'hDEAD_BEEF);
+        check32("memory[0x1C]", uut.u_slave.mem[7], 32'h0BAD_F00D);
+
+        // pass must drop if the loaded words no longer match what came back
+        load_reg(3'd2, 32'h1234_5678);
+        @(posedge clk); #1;
+        check("pass drops when a loaded word differs", pass === 1'b0);
+        load_reg(3'd2, 32'hDEAD_BEEF);
+
+        release_start;
+        check("done clears when start is released", done === 1'b0);
 
         //---------------------------------------------------------------------
-        $display("\n-- reset in the middle of the sequence, then it runs again");
+        $display("\n-- second run: a different address and different words");
+        load_all(32'h0000_0040, 32'h1111_1111, 32'h2222_2222,
+                 32'h3333_3333, 32'h4444_4444);
+        run_start(2000);
+        check("finished again (done)", done === 1'b1);
+        check("passes again (pass)",   pass === 1'b1);
+        check_readback(32'h1111_1111, 32'h2222_2222, 32'h3333_3333, 32'h4444_4444);
+        check32("memory[0x40]", uut.u_slave.mem[16], 32'h1111_1111);
+        check32("memory[0x44]", uut.u_slave.mem[17], 32'h2222_2222);
+        check32("memory[0x48]", uut.u_slave.mem[18], 32'h3333_3333);
+        check32("memory[0x4C]", uut.u_slave.mem[19], 32'h4444_4444);
+        check32("memory[0x10] untouched", uut.u_slave.mem[4], 32'hA5A5_0001);
+        release_start;
+
+        //---------------------------------------------------------------------
+        $display("\n-- reset in the middle of a sequence");
+        load_all(32'h0000_0080, 32'hCAFE_0001, 32'hCAFE_0002,
+                 32'hCAFE_0003, 32'hCAFE_0004);
         @(posedge clk);
-        #1 resetn = 1'b0;
-        repeat (3) @(posedge clk);
-        #1 resetn = 1'b1;
-        repeat (12) @(posedge clk);          // part-way through the first write
+        #1 start = 1'b1;
+        repeat (6) @(posedge clk);            // part-way through the write
         check("not done yet, mid-sequence", done === 1'b0);
-        #1 resetn = 1'b0;                    // reset again, mid-sequence
-        uut.u_slave.mem[4] = 32'd0;          // clear the four words, so the
-        uut.u_slave.mem[5] = 32'd0;          // second run has to write them again
-        uut.u_slave.mem[6] = 32'd0;
-        uut.u_slave.mem[7] = 32'd0;
+        #1 start = 1'b0;
+        resetn = 1'b0;
         repeat (3) @(posedge clk);
         #1 resetn = 1'b1;
-        wait_done(2000);
-        check("finished again after the reset", done === 1'b1);
-        check("passes again after the reset", pass === 1'b1);
-        check_memory;
+        repeat (3) @(posedge clk);
+        check32("reset cleared input DFF addr",  uut.addr, 32'd0);
+        check32("reset cleared input DFF data0", uut.d0,   32'd0);
+        check32("reset cleared output DFF rd0",  rd0,      32'd0);
+        check("reset: done is 0",        done === 1'b0);
+        check("reset: master is idle",   uut.awvalid === 1'b0 && uut.wvalid === 1'b0);
+
+        $display("\n-- reload and run again after the reset");
+        load_all(32'h0000_0020, 32'h0000_000A, 32'h0000_000B,
+                 32'h0000_000C, 32'h0000_000D);
+        run_start(2000);
+        check("finished after the reset (done)", done === 1'b1);
+        check("passes after the reset (pass)",   pass === 1'b1);
+        check_readback(32'h0000_000A, 32'h0000_000B, 32'h0000_000C, 32'h0000_000D);
+        check32("memory[0x20]", uut.u_slave.mem[8],  32'h0000_000A);
+        check32("memory[0x2C]", uut.u_slave.mem[11], 32'h0000_000D);
+        release_start;
 
         //---------------------------------------------------------------------
         repeat (5) @(posedge clk);
