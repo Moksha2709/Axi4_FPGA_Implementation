@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 700" width="2320" height="1400" role="img" aria-label="Wiring diagram. The testbench drives load, load_sel and load_data into the input D flip-flops and start into the master. The input flip-flops send the address and four data words to the master. The master and the slave are joined directly by the five AXI4 channels AW, W, B, AR and R. The master sends each read beat (rd_valid, rd_idx, rd_data) to the output D flip-flops. A compare block takes done, the four loaded words and the four read-back words and produces pass. The testbench reads done, pass and the four read-back words.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1160 700" width="2320" height="1400" role="img" aria-label="Wiring diagram. The testbench drives load, load_sel and load_data into the input D flip-flops and start into the master. The input flip-flops send the address and four data words to the master. The master and the slave are joined directly by the five AXI4 channels AW, W, B, AR and R. The read data RDATA goes from the slave straight to the output D flip-flops, which are tapped off the R channel; the master only supplies the write-enable rd_valid and the position rd_idx. A compare block takes done, the four loaded words and the four read-back words and produces pass. The testbench reads done, pass and the four read-back words.">
 <style>
 text{fill:#1E2A3B;font-family:'Segoe UI','Nunito',Arial,sans-serif}
 .t{font-size:16px;font-weight:700}
@@ -103,8 +103,7 @@ text{fill:#1E2A3B;font-family:'Segoe UI','Nunito',Arial,sans-serif}
 <line class="w" x1="936" y1="380" x2="724" y2="380" marker-end="url(#a1)"/>
 <text class="sg" x="828" y="357" text-anchor="middle">RID RDATA RRESP RLAST</text>
 <text class="sg" x="828" y="371" text-anchor="middle">RVALID  RREADY</text>
-<text class="t" x="828" y="62" text-anchor="middle">the five AXI4 channels</text>
-<text class="s" x="828" y="415" text-anchor="middle">wired directly, nothing in between</text>
+<text class="t" x="740" y="62">five AXI4 channels, wired directly</text>
 
 <!-- ============ start / done along the top ============ -->
 <path class="ctl" d="M60 70 L60 26 L690 26 L690 68" marker-end="url(#a3)"/>
@@ -114,10 +113,18 @@ text{fill:#1E2A3B;font-family:'Segoe UI','Nunito',Arial,sans-serif}
 <!-- the arrowhead of start points down into the master; done's points into the testbench -->
 
 <!-- ============ master -> output DFFs ============ -->
-<line class="bus" x1="630" y1="400" x2="630" y2="496" marker-end="url(#a2)"/>
-<text class="sgb" x="644" y="438">rd_valid  (1 bit)</text>
-<text class="sgb" x="644" y="454">rd_idx    (2 bits)</text>
-<text class="sgb" x="644" y="470">rd_data   (32 bits)</text>
+<!-- the read DATA comes from the slave: tapped from the R channel wires -->
+<circle class="dot" cx="770" cy="380" r="4.5"/>
+<path class="bus" d="M770 380 L770 470 L690 470 L690 496" marker-end="url(#a2)"/>
+<text class="sgb" x="780" y="428">RDATA (32 bits)</text>
+<text class="s" x="780" y="446">straight from the slave</text>
+<!-- the master only supplies the write-enable and the position -->
+<line class="ctl" x1="580" y1="400" x2="580" y2="496" marker-end="url(#a3)"/>
+<line class="ctl" x1="620" y1="400" x2="620" y2="496" marker-end="url(#a3)"/>
+<text class="sg" x="572" y="440" text-anchor="end">rd_valid</text>
+<text class="s" x="572" y="456" text-anchor="end">1 bit</text>
+<text class="sg" x="628" y="440">rd_idx</text>
+<text class="s" x="628" y="456">2 bits</text>
 
 <!-- ============ master done -> compare ============ -->
 <path class="ctl" d="M540 370 L395 370 L395 498" marker-end="url(#a3)"/>
